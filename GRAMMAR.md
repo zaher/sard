@@ -530,7 +530,7 @@ object-construction := "~" identifier
 
 - `~Proto` — creates a new instance with `Proto` as its prototype; members are looked up in the prototype chain.
 - `~~Proto` — creates a new instance with a **shallow copy** of all members from `Proto`.
-- `@expr` — creates a **reference** to an existing object (both point to the same object).
+- `@expr` — creates a **reference** to an existing object or variable (both point to the same value/object).
 
 ```sard
 point : {
@@ -572,6 +572,14 @@ named-block          := identifier argument-list? block
 Functions are callable objects. They can accept:
 - An argument list: `func()` or `func(a, b)`
 - Named blocks (`identifier block`): `if (cond) { } else { }`
+
+**Calling with No Arguments:** Callable objects with no arguments can be called without parentheses by using just the identifier name. This provides a more natural syntax for parameterless calls.
+
+```sard
+// Both are valid for parameterless callables:
+greet;        // Call without parentheses (natural syntax)
+greet();      // Call with empty parentheses (also valid)
+```
 
 **Block Rules:**
 - **Named blocks only:** Only named blocks are permitted, not anonymous blocks. The syntax `func { }` is invalid.
@@ -1092,7 +1100,7 @@ When constructing with `~~Proto`, a shallow copy of all members is made; the new
 
 ### 8.3 Reference Operator
 
-The `@` operator creates a **reference** to an existing object. The new identifier points to the same object instance — modifications through either identifier affect the same underlying object.
+The `@` operator creates a **reference** to an existing object or variable. The new identifier points to the same underlying value or object instance — modifications through either identifier affect the same data.
 
 ```sard
 obj : { x : integer = 0; }
@@ -1101,9 +1109,15 @@ ref = @obj;        // ref and obj are the same object
 ref.x = 10;
 print(obj.x);     // 10 (same object)
 print(ref.x);     // 10
+
+// Works with any value, not just objects
+x = 10
+p = @x;           // p references x
+x = 20;
+print(p);         // 20 (p reflects the updated value of x)
 ```
 
-Use `@` when you need multiple names for the same object. Use `~` when you need a new instance that inherits from a prototype.
+Use `@` when you need multiple names for the same data. Use `~` when you need a new instance that inherits from a prototype.
 
 ### 8.4 Callable Objects
 
@@ -1161,6 +1175,9 @@ The following are callable objects provided by the runtime:
 | `while` | Loop construct |
 | `else` | Used with `if` for alternative branch |
 | `negate` | Numeric negation (callable version) |
+| `break` | Exits from loop or block (runtime-defined via addons, not reserved) |
+
+**Note:** `break` is not a reserved word and is not built into the core language. It is declared at runtime by addons and can be shadowed by local declarations or replaced with custom implementations.
 
 These callable objects can be invoked with arguments, blocks, or both. They can be assigned to variables or passed as arguments.
 
@@ -1358,6 +1375,34 @@ while (x < 10) {
     print("skipped")
 }
 ```
+
+#### `break`
+
+`break` is a callable object (not a reserved word) that can be defined at runtime via addons. It terminates the current loop or exits from the current block, allowing for early exit from control flow structures.
+
+**Note:** Since `break` is not a reserved word, it can be shadowed by local declarations or replaced by addons. The default implementation (if provided by an addon) allows breaking out of loops and blocks.
+
+```sard
+// Example usage if break is defined by an addon
+i = 0;
+while (i < 100) {
+    if (i = 50) {
+        break;        // exit the loop early (no parentheses needed)
+    };
+    print(i);
+    i++;
+}
+
+// Can also be used to exit from a block early
+result = {
+    if (some_condition) {
+        break;        // exit from the outer block (no parentheses needed)
+    };
+    = calculate_value();
+};
+```
+
+**Implementation Note:** Addons can define `break` as a callable object that, when invoked, signals the interpreter to unwind the execution stack until the nearest enclosing loop or block boundary. The exact semantics (e.g., whether it accepts an argument to return a value) are defined by the addon implementation.
 
 ### 9.5 Extending the Language
 
