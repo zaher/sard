@@ -1,0 +1,40 @@
+// PASS09.sard - Block Expressions
+// Simple block
+result = {
+    a = 5
+    b = 10
+    a + b           // evaluates to 15
+}
+
+// Block with explicit return
+value = {
+    temp = x + y
+    = temp * 2     // return statement
+}
+
+// Empty block (evaluates to null)
+empty = {}
+
+// Nested blocks
+nested = {
+    inner = {
+        x = 1
+        y = 2
+        x + y
+    }
+    inner * 10
+}
+
+// Block as statement (creates scope, discards value)
+{
+    local = 42
+    print(local)
+}
+
+// Multiple statements in block
+complex = {
+    step1 = 1
+    step2 = 2
+    step3 = step1 + step2
+    = step3 * 10
+}

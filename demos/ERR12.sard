@@ -1,0 +1,14 @@
+// ERR12.sard - Invalid Object Construction
+// ERROR: Cannot use expression with ~ (requires identifier)
+proto = get_proto()
+obj = ~proto    // ERROR: proto is expression, not identifier
+
+// ERROR: Cannot use expression with ~~
+obj2 = ~~proto  // ERROR: same issue
+
+// ERROR: Cannot chain construction
+obj3 = ~~point  // This is valid
+// obj4 = ~~point.x  // ERROR: member access before construction
+
+// ERROR: ~ requires identifier directly
+// obj5 = ~(get_point())  // ERROR: cannot use parentheses

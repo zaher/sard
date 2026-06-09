@@ -1,0 +1,32 @@
+// PASS06.sard - Increment and Decrement
+// Prefix increment
+a = 5
+b = ++a      // a = 6, b = 6
+
+// Prefix decrement
+c = 10
+d = --c      // c = 9, d = 9
+
+// Postfix increment
+e = 5
+f = e++      // f = 5, e = 6
+
+// Postfix decrement
+g = 10
+h = g--      // h = 10, g = 9
+
+// Auto-creation with increment (initial value 0)
+new_var++    // new_var created as 0, then incremented to 1
+++another    // another created as 0, incremented to 1
+
+// With member access
+obj : {
+    counter : integer = 0
+}
+obj.counter++
+++obj.counter
+
+// With array indexing
+arr = [10, 20, 30]
+arr[0]++
+++arr[1]

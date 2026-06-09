@@ -1,0 +1,34 @@
+// PASS15.sard - Qualified Identifiers (Member Access)
+// Object with nested members
+app : {
+    config : {
+        debug : boolean = true
+        version : string = "1.0.0"
+        settings : {
+            theme : string = "dark"
+            language : string = "en"
+        }
+    }
+    
+    data : {
+        users : array = []
+        count : integer = 0
+    }
+}
+
+// Accessing nested members
+version = app.config.version
+debug_mode = app.config.debug
+theme = app.config.settings.theme
+
+// Assigning to nested members
+app.config.debug = false
+app.config.settings.theme = "light"
+
+// Complex qualified access in expressions
+full_version = app.config.version + "-" + app.config.settings.language
+
+// With arrays
+app.data.count = 100
+app.data.users = ["alice", "bob"]
+first_user = app.data.users[0]

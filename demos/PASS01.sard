@@ -1,0 +1,35 @@
+// PASS01.sard - Basic Literals and Variables
+// Integer literals
+a = 0
+b = 42
+c = 999999
+
+// Decimal literals
+pi = 3.14
+rate = 0.001
+half = 0.5
+
+// Hexadecimal literals
+h1 = 0x0
+h2 = 0xff
+h3 = 0xDEADBEEF
+h4 = 0x1a2b3c
+
+// String literals (single and double quotes)
+s1 = "Hello, World!"
+s2 = 'multiline
+string here'
+
+// Color literals
+c1 = #ff5733
+c2 = #000000
+c3 = #FFFFFF
+
+// Boolean (built-in objects, not literals)
+flag = true
+enabled = false
+
+// Variable declaration with type annotation
+x : integer = 10
+y : integer
+name : string = "Sard"

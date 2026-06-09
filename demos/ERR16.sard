@@ -1,0 +1,12 @@
+// ERR16.sard - Invalid Declaration Ambiguity
+// ERROR: Ambiguous callable vs variable declaration
+// foo : { x = 1 }  // This is parsed as callable declaration
+
+// To make a variable with block value, use = assignment:
+foo = { x = 1 }  // This is correct - block executes immediately
+
+// ERROR: Trying to declare type with block (callable declaration)
+// data : type { x = 1 }  // This declares callable named 'data', not variable
+
+// To declare variable with type and block:
+// data : type = { x = 1 }  // Variable declaration with type annotation and assignment

@@ -1,0 +1,33 @@
+// PASS19.sard - Built-in Objects as Values
+// Built-in objects are regular objects that can be assigned
+my_print = print
+my_print("Hello via alias")
+
+// Using if as value
+my_if = if
+my_if (x > 0) {
+    print("positive")
+} else {
+    print("non-positive")
+}
+
+// Using while as value
+my_while = while
+
+// Named operators as values (can be overridden)
+my_and = and
+my_or = or
+my_not = not
+
+// Building expressions with aliased operators
+result = my_and(true, true)
+result2 = my_or(false, true)
+
+// Storing in arrays or objects
+builtins : {
+    printer = print
+    cond = if
+    loop = while
+}
+
+builtins.printer("via object")

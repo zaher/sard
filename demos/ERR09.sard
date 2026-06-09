@@ -1,0 +1,17 @@
+// ERR09.sard - Invalid Return Statement Usage
+// ERROR: Return statement inside expression context
+result = (= 5)
+
+// ERROR: Return as function argument
+print(= x)
+
+// ERROR: Return inside parentheses
+val = (= 10 + 20)
+
+// ERROR: Return in condition
+if (= x) { 
+    print("invalid")
+}
+
+// ERROR: Return statement cannot be used where expression expected
+// Only valid as direct statement in block or top level

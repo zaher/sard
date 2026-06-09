@@ -1,0 +1,31 @@
+// PASS07.sard - Assignment and Compound Assignment
+// Simple assignment
+x = 42
+y = x
+
+// Member assignment
+point : {
+    x_val : integer = 0
+    y_val : integer = 0
+}
+point.x_val = 100
+point.y_val = 200
+
+// Array element assignment
+nums = [10, 20, 30]
+nums[0] = 100
+nums[1] = 99
+
+// Compound addition assignment
+count = 10
+count += 5       // count = 15
+
+// Compound subtraction assignment
+count -= 3       // count = 12
+
+// Array compound assignment
+arr[0] += 10
+arr[1] -= 5
+
+// Multiple assignments (chained comparison result)
+a = b = c = 5    // a = (b = c = 5) = (5 = 5 = 5) = comparison result

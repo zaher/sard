@@ -1,0 +1,12 @@
+// ERR02.sard - Invalid String/Escape Sequences
+// ERROR: Missing closing quote
+unterminated = "Hello, World!
+
+// ERROR: Invalid escape sequence inside string (escape must be outside)
+wrong = "Hello\nWorld"  // Invalid: escape inside string
+
+// ERROR: Invalid escape character
+invalid = "test" \x "more"  // \x is not a valid escape
+
+// ERROR: Standalone escape without adjacent string
+standalone = \n  // Must be adjacent to string literals

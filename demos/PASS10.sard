@@ -1,0 +1,34 @@
+// PASS10.sard - Object Construction
+// Base prototype
+point : {
+    x : integer = 0
+    y : integer = 0
+}
+
+// New instance with prototype (inherits from point)
+p1 = ~point
+p1.x = 100
+p1.y = 200
+
+// Another instance (independent)
+p2 = ~point
+p2.x = 50
+p2.y = 75
+
+// Shallow copy (copies all members, no prototype chain)
+p3 = ~~point
+p3.x = 999  // Doesn't affect point prototype
+
+// Reference (same object)
+ref = @p1
+ref.x = 500  // Also changes p1.x
+
+// Complex prototype
+person : {
+    name : string = ""
+    age : integer = 0
+}
+
+alice = ~person
+alice.name = "Alice"
+alice.age = 30

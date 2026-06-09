@@ -1,0 +1,48 @@
+// PASS12.sard - Callable Objects (Functions)
+// Simple callable with no parameters
+greet : {
+    = "Hello, World!"
+}
+
+result = greet()
+
+// Callable with parameters
+add : (a, b) {
+    = a + b
+}
+
+sum = add(10, 20)
+
+// Multiple parameters
+multiply : (x, y, z) {
+    = x * y * z
+}
+
+prod = multiply(2, 3, 4)
+
+// Callable with local variables
+power : (base, exp) {
+    result = 1
+    i = 0
+    while (i < exp) {
+        result = result * base
+        i += 1
+    }
+    = result
+}
+
+two_to_8 = power(2, 8)
+
+// Nested callable
+calculator : {
+    add : (a, b) {
+        = a + b
+    }
+    
+    subtract : (a, b) {
+        = a - b
+    }
+}
+
+r1 = calculator.add(10, 5)
+r2 = calculator.subtract(10, 5)

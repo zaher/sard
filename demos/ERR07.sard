@@ -1,0 +1,15 @@
+// ERR07.sard - Invalid Call Chaining
+// ERROR: Cannot chain calls (call result is not callable)
+func()()
+
+// ERROR: Triple call chaining
+func()()()
+
+// ERROR: Method call chaining
+obj.method()()
+
+// ERROR: Call after array indexing
+arr[0]()
+
+// Note: These are blocked by semantic constraint:
+// "only ONE postfix-call allowed per postfix chain"

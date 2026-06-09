@@ -1,0 +1,11 @@
+// ERR10.sard - Invalid Comparison Chaining
+// ERROR: Type comparison (==) does NOT chain
+is_number = (x == integer == decimal)
+
+// Should use:
+// is_number = (x == integer) or (x == decimal)
+
+// ERROR: Chaining type comparison with value comparison
+result = (x == integer = 5)
+
+// Type comparison has lowest precedence but does not chain

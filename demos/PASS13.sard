@@ -1,0 +1,42 @@
+// PASS13.sard - Control Flow (if/else)
+// Simple if with condition
+if (x > 0) {
+    print("positive")
+}
+
+// If with else
+if (score >= 90) {
+    grade = "A"
+} else {
+    grade = "B"
+}
+
+// Chained if-else
+if (x < 0) {
+    sign = "negative"
+} else {
+    if (x = 0) {
+        sign = "zero"
+    } else {
+        sign = "positive"
+    }
+}
+
+// If used as expression
+result = if (a > b) {
+    = a
+} else {
+    = b
+}
+
+// If without else returning value
+val = if (condition) {
+    = 42
+}
+
+// Complex condition
+if ((x > 0) and (x < 100)) {
+    print("in range")
+} else {
+    print("out of range")
+}

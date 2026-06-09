@@ -1,0 +1,10 @@
+// ERR01.sard - Invalid Identifiers
+// ERROR: Cannot start with digit
+123abc = 5
+
+// ERROR: Cannot start with combining mark
+\u0303name = 10
+
+// Invalid in identifiers:
+// 123abc      // starts with digit
+// \u0303abc   // starts with combining mark ( Mn category )

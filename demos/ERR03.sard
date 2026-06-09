@@ -1,0 +1,14 @@
+// ERR03.sard - Invalid Color Literals
+// ERROR: Wrong length
+short = #ffff
+long = #ff57330
+
+// ERROR: Invalid characters
+invalid_hex = #gggggg
+invalid_chars = #12345g
+
+// ERROR: Missing #
+missing_hash = ff5733
+
+// ERROR: Too short
+too_short = #00

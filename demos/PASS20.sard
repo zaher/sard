@@ -1,0 +1,53 @@
+// PASS20.sard - Complex Nesting and Recursion
+// Recursive factorial
+factorial : (n) {
+    = if (n <= 1) {
+        1
+    } else {
+        sub = factorial(n - 1)
+        n * sub
+    }
+}
+
+fact5 = factorial(5)  // 120
+
+// Mutually recursive
+is_even : (n) {
+    if (n = 0) {
+        = true
+    } else {
+        = is_odd(n - 1)
+    }
+}
+
+is_odd : (n) {
+    if (n = 0) {
+        = false
+    } else {
+        = is_even(n - 1)
+    }
+}
+
+even10 = is_even(10)  // true
+odd7 = is_odd(7)      // true
+
+// Deep nesting
+outer : {
+    middle : {
+        inner : {
+            value : integer = 42
+        }
+    }
+}
+
+val = outer.middle.inner.value
+
+// Array of objects
+points = [
+    ~point
+    ~point
+    ~point
+]
+points[0].x = 10
+points[1].x = 20
+points[2].x = 30

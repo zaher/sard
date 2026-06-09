@@ -1,0 +1,22 @@
+// PASS04.sard - Comments
+// Single-line comment
+x = 1  // inline comment
+
+/* Multi-line comment
+   that spans several lines
+   and can contain code-like text: x = 999
+*/
+
+y = 2
+
+{* Block comment style
+   Can contain other block comments: {* nested *}
+   And single line: // comments inside
+   And multi: /* inside block */ *}
+
+z = 3
+
+// Multiple single-line comments
+// line 1
+// line 2
+// line 3

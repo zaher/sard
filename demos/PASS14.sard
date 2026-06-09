@@ -1,0 +1,41 @@
+// PASS14.sard - While Loops
+// Simple while loop
+count = 0
+while (count < 10) {
+    print(count)
+    count += 1
+}
+
+// While with complex condition
+i = 1
+j = 100
+while (i < j) {
+    i += 1
+    j -= 1
+}
+
+// While with else (runs once if condition initially false)
+n = 20
+while (n < 10) {
+    print(n)
+    n += 1
+} else {
+    print("condition was false")
+}
+
+// Endless loop (no condition)
+iteration = 0
+while {
+    iteration += 1
+    if (iteration >= 5) {
+        break
+    }
+}
+
+// While with increment/decrement
+index = 0
+arr = [10, 20, 30, 40, 50]
+while (index < 5) {
+    print(arr[index])
+    index++
+}

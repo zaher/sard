@@ -1,0 +1,52 @@
+// ========================================
+// Sard Language Examples - Overview
+// ========================================
+//
+// PASS examples demonstrate VALID Sard syntax
+// ERR examples demonstrate INVALID/broken syntax
+//
+// PASS Files:
+// PASS01.sard - Basic Literals (int, decimal, hex, string, color, boolean)
+// PASS02.sard - Escape Sequences and String Concatenation
+// PASS03.sard - Unicode Identifiers
+// PASS04.sard - Comments (single-line, multi-line, block)
+// PASS05.sard - Arithmetic and Binary Operators (+ - * / mod, comparisons, logical)
+// PASS06.sard - Increment and Decrement (++ --, auto-creation)
+// PASS07.sard - Assignment and Compound Assignment (= += -=)
+// PASS08.sard - Percent Operator (%, accountant calculator mode)
+// PASS09.sard - Block Expressions and Return Values
+// PASS10.sard - Object Construction (~ ~~ @)
+// PASS11.sard - Arrays and Indexing
+// PASS12.sard - Callable Objects (Functions)
+// PASS13.sard - Control Flow (if/else)
+// PASS14.sard - While Loops (with else, endless loops)
+// PASS15.sard - Qualified Identifiers (Member Access)
+// PASS16.sard - Complex Example (Bank Account Pattern)
+// PASS17.sard - Named Operators (mod, and, or, not)
+// PASS18.sard - Scoping Rules
+// PASS19.sard - Built-in Objects as Values
+// PASS20.sard - Complex Nesting and Recursion
+//
+// ERR Files:
+// ERR01.sard - Invalid Identifiers (starting with digit, combining marks)
+// ERR02.sard - Invalid String/Escape Sequences
+// ERR03.sard - Invalid Color Literals
+// ERR04.sard - Invalid Newline in Expression
+// ERR05.sard - Invalid Assignment Targets
+// ERR06.sard - Invalid Prefix Inc/Dec on non-lvalues
+// ERR07.sard - Invalid Call Chaining (func()())
+// ERR08.sard - Invalid Named Block Placement
+// ERR09.sard - Invalid Return Statement Usage
+// ERR10.sard - Invalid Comparison Chaining with ==
+// ERR11.sard - Invalid Block/Statement Issues
+// ERR12.sard - Invalid Object Construction
+// ERR13.sard - Note: No Reserved Words (all shadowing is valid!)
+// ERR14.sard - Invalid Array Operations (runtime errors)
+// ERR15.sard - Invalid While Loop Syntax
+// ERR16.sard - Invalid Declaration Ambiguity
+//
+// Note: These examples are for documentation purposes.
+// A real Sard parser/interpreter would reject ERR files
+// and successfully parse PASS files.
+//
+// ========================================

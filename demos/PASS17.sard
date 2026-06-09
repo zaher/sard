@@ -1,0 +1,26 @@
+// PASS17.sard - Named Operators
+// Named operators work like symbol operators
+// mod (modulo)
+r1 = 17 mod 5    // 2
+
+// and (logical AND)
+r2 = true and false    // false
+r3 = true and true     // true
+
+// or (logical OR)
+r4 = false or true     // true
+r5 = false or false    // false
+
+// not (logical NOT)
+r6 = not true          // false
+r7 = not false         // true
+
+// Mixed with symbol operators
+c1 = (a and b) or (c and d)
+c2 = (a & b) | (c & d)    // equivalent
+
+// Named operators in complex expressions
+valid = (x >= 0) and (x < 100) and (not is_error)
+
+// mod with other arithmetic
+result = (a + b) mod c

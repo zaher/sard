@@ -1,0 +1,13 @@
+// ERR06.sard - Invalid Prefix Inc/Dec
+// ERROR: Cannot increment/decrement non-lvalue
+++5             // 5 is not an lvalue
+--(x + y)       // Expression result not lvalue
+
+// ERROR: Cannot increment/decrement expression in parentheses
+++(x)           // (x) is expression, not lvalue directly
+
+// ERROR: Cannot increment/decrement array literal
+++[1, 2, 3]     // Array literal not lvalue
+
+// ERROR: Cannot increment/decrement string literal
+++"hello"       // String literal not lvalue

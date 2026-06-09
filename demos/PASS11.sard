@@ -1,0 +1,38 @@
+// PASS11.sard - Arrays and Indexing
+// Empty array
+empty = []
+
+// Array with elements
+nums = [1, 2, 3, 4, 5]
+mixed = [1, "hello", true, #ff0000]
+
+// Nested arrays
+matrix = [
+    [1, 2, 3]
+    [4, 5, 6]
+    [7, 8, 9]
+]
+
+// Array indexing
+first = nums[0]
+second = nums[1]
+last = nums[4]
+
+// Indexing nested arrays
+element = matrix[1][2]  // 6
+
+// Array element assignment
+nums[0] = 100
+nums[2] = 300
+
+// Shallow copy on assignment
+a = [1, 2, 3]
+b = a         // b is shallow copy
+b[0] = 99     // a[0] still 1 (shallow copy)
+
+// Array in object
+obj : {
+    data : array = [10, 20, 30]
+}
+instance = ~obj
+instance.data[0] = 100

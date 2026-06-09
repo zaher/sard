@@ -1,0 +1,17 @@
+// ERR08.sard - Invalid Named Block Placement
+// ERROR: Named block after member access (not after a call)
+obj.method else { print("error") }
+
+// ERROR: Named block without preceding call
+else { print("else without if") }
+
+// ERROR: Anonymous block without preceding call
+{ print("anonymous block") } else { print("invalid") }
+
+// ERROR: Two consecutive named blocks without proper chaining
+func() else { } else { }
+
+// Note: Named blocks can only follow:
+// - argument-list: if (cond) { } else { }
+// - anonymous block: while (cond) { } else { }
+// - another named-block: chained named blocks

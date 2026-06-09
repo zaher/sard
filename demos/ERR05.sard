@@ -1,0 +1,12 @@
+// ERR05.sard - Invalid Assignment Targets
+// ERROR: Cannot assign to expression in parentheses
+(x) = 5         // (x) is expression, not lvalue
+
+// ERROR: Cannot assign to literal
+10 = 20         // Literals are not lvalues
+
+// ERROR: Cannot assign to binary expression
+(a + b) = 10    // Expression result not assignable
+
+// ERROR: Cannot assign to object construction
+(~proto) = x    // Object construction returns object, not lvalue

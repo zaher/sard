@@ -1,0 +1,37 @@
+// PASS18.sard - Scoping Rules
+// Global variable
+outer = 10
+
+// Block creates new scope
+{
+    inner = 20
+    print(outer)    // 10 - found in parent scope
+    print(inner)    // 20 - found in current scope
+}
+
+// Assignment walks up scope chain
+x = 1
+{
+    x = 2          // updates outer x
+}
+print(x)           // 2
+
+// Variable creation in inner scope
+{
+    y = 100        // creates new y in inner scope
+    y += 50
+    print(y)       // 150
+}
+// print(y)        // ERROR - y not visible here
+
+// Callable object scoping
+outer_val = 50
+counter : () {
+    local_count = 0
+    local_count += 1
+    = local_count
+}
+
+// Each call gets fresh scope
+r1 = counter()     // 1
+r2 = counter()     // 1 (new scope)
