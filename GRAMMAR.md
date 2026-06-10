@@ -7,7 +7,7 @@
 
 ## 1. Introduction
 
-Sard is a prototype-based, expression-oriented scripting language where **everything is an object** — including variables, control structures, and even the language constructs themselves. **Symbol-based operators** (`+`, `-`, `*`, `/`, etc.) are syntactic primitives with fixed precedence, while **named operators** (`mod`, `and`, `or`, `not`) are implemented as extensible operator handler objects. There are no reserved words; constructs like `if`, `while`, `true` resolve to built-in objects at runtime.
+Sard is a prototype-based, expression-oriented scripting language where **everything is an object** — including variables, control structures, and even the language constructs themselves. **Symbol-based operators** (`+`, `-`, `*`, `/`, etc.) are syntactic primitives with fixed precedence, while **named operators** (`mod`, `and`, `or`, `not`) are implemented as extensible operator handler objects. constructs like `if`, resolve to built-in objects at runtime.
 
 Key characteristics:
 - **Case-insensitive** identifiers
@@ -97,10 +97,10 @@ integer-literal      := [0-9]+
 999999
 ```
 
-#### 2.4.2 Decimal Literals
+#### 2.4.2 Number Literals
 
 ```
-decimal-literal      := [0-9]+ "." [0-9]+
+number-literal      := [0-9]+ "." [0-9]+
 ```
 
 ```sard
@@ -228,8 +228,8 @@ identifier-continue  := identifier-start | digit
 
 **Rules:**
 - Identifiers are case-insensitive internally (stored in lowercase)
-- There are **no reserved words**
-- Words like `true`, `false`, `if`, `while` are **built-in root-scope objects**, not keywords. They can be shadowed by local declarations or replaced via addons, though this is not recommended for readability.
+- Reserved words is types and `true`, `false`
+- Words like `if`, `while` are **built-in root-scope objects**, not keywords. They can be shadowed by local declarations or replaced via addons, though this is not recommended for readability.
 - Named operators (`mod`, `and`, `or`, `not`) are **operator handler objects** that can be defined, overridden, or extended via addons to provide custom behavior.
 
 **Examples:**
@@ -333,7 +333,7 @@ When a variable is declared with a type annotation (`identifier : type`), the ru
 // Untyped - can change types freely
 x = 10          // x is integer
 x = "test"      // valid - x becomes string
-x = 3.14        // valid - x becomes decimal
+x = 3.14        // valid - x becomes number
 
 // Typed - strict type enforcement
 y : integer = 10    // y is strictly integer
@@ -343,8 +343,8 @@ y = "30"            // valid - auto-cast: "30" -> 30, y = 30
 y = "abc"           // ERROR: cannot convert "abc" to integer (no valid conversion)
 
 // Auto-cast examples
-price : decimal = 100      // valid: integer -> decimal (100.0)
-count : integer = 9.9      // valid: decimal -> integer (9, truncated)
+price : number = 100      // valid: integer -> number (100.0)
+count : integer = 9.9      // valid: number -> integer (9, truncated)
 flag : boolean = 1         // valid: integer -> boolean (true, non-zero = true)
 ```
 
@@ -366,7 +366,7 @@ y : my_module.point;
 | Type | Description | Example Literals |
 |------|-------------|------------------|
 | `integer` | Signed integer | `42`, `0` |
-| `decimal` | Floating-point | `3.14`, `0.5` |
+| `number` | Floating-point | `3.14`, `0.5` |
 | `string` | Unicode string | `"hello"` |
 | `boolean` | Boolean value | `true`, `false` (built-in objects, not literals) |
 | `color` | RGB color value (DWORD 4 bytes) | `#ff0000` |
@@ -382,7 +382,7 @@ y : my_module.point;
 
 ```
 literal-expression   := integer-literal
-                        | decimal-literal
+                        | number-literal
                         | hex-literal
                         | string-literal
                         | color-literal
@@ -484,7 +484,7 @@ is_string = (x == string)  // true if x is a string type
 is_bool = (x == boolean)   // true if x is a boolean type
 
 // Multiple type checks (type comparison does NOT chain)
-is_number = (x == integer) or (x == decimal)   // true if x is integer OR x is decimal
+is_number = (x == integer) or (x == number)   // true if x is integer OR x is number
 ```
 
 ### 4.5 Unary Expressions
@@ -1747,7 +1747,7 @@ primary              := literal
                        | array-literal
 
 literal              := integer-literal
-                        | decimal-literal
+                        | number-literal
                         | hex-literal
                         | string-literal
                         | color-literal
