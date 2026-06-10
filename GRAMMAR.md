@@ -44,9 +44,9 @@ Whitespace consists of spaces, tabs (`\t`), carriage returns (`\r`), and newline
 **Important:** Newlines terminate statements unconditionally. To continue an expression across multiple lines, the line must end with an operator or opening bracket:
 
 ```sard
-// INVALID - newline terminates statement before +
+// INVALID - newline terminates statement before operator
 x = 1
-    + 2      // Parsed as: x = 1; +2; (second statement is invalid)
+    * 2      // Parsed as: x = 1; *2; (second statement is a parse error)
 
 // VALID - line ends with operator, expression continues
 x = 1 +
@@ -418,7 +418,7 @@ operator             := "+" | "-" | "*" | "/" | "^" | "mod"
                        | "=="                    (* type comparison, not value *)
 ```
 
-All binary operators are **left-associative**. Comparison operators support **chaining** like Python. Assignment is **right-associative** in the sense that `a = b = c` assigns the result of the chained comparison `(b = c)` to `a`.
+All binary operators are **left-associative**. Comparison operators support **chaining** like Python. Assignment is **right-associative** in the sense that `a = b = c` assigns the result of the comparison `(b = c)` to `a`.
 
 Precedence (high to low):
 
@@ -560,9 +560,17 @@ print(p1.x);        // 99
 ### 4.7 Function Calls
 
 ```
-function-call        := callee (argument-list | block | named-block)+
+function-call        := callee postfix-link*
 
 callee               := expression
+
+postfix-link         := "." identifier
+                       | "[" expression "]"
+                       | argument-list block?
+                       | named-block
+                       | block
+                       | "%"
+                       | "++" | "--"
 
 argument-list        := "(" (expression ("," expression)*)? ")"
 
@@ -573,11 +581,15 @@ Functions are callable objects. They can accept:
 - An argument list: `func()` or `func(a, b)`
 - Named blocks (`identifier block`): `if (cond) { } else { }`
 
-**Calling with No Arguments:** Callable objects with no arguments can be called without parentheses by using just the identifier name. This provides a more natural syntax for parameterless calls.
+**Calling with No Arguments:** Callable objects with no arguments can be called without parentheses by using just the identifier name. This is a semantic rule: when an identifier expression used as a statement resolves to a callable object, it is implicitly invoked.
+
+```
+implicit-call        := identifier    (* resolved to callable → implicit invocation *)
+```
 
 ```sard
 // Both are valid for parameterless callables:
-greet;        // Call without parentheses (natural syntax)
+greet;        // Call without parentheses (natural syntax, implicit invocation)
 greet();      // Call with empty parentheses (also valid)
 ```
 
@@ -874,12 +886,14 @@ assignment           := lvalue "=" expression (";" | newline)
                        | lvalue "+=" expression (";" | newline)
                        | lvalue "-=" expression (";" | newline)
 
-lvalue               := primary (lvalue-suffix)*
+lvalue               := lvalue-primary (lvalue-suffix)*
+lvalue-primary       := identifier
+
 lvalue-suffix        := "." identifier
                        | "[" expression "]"
 ```
 
-**Note:** `lvalue` is any expression that can be assigned to: an identifier with optional member access and/or array indexing.
+**Note:** `lvalue` is an identifier (with optional member access and/or array indexing) that can be assigned to. Parenthesized expressions are NOT lvalues — `(x) = 5` is parsed as a comparison.
 
 ```sard
 x = 42
@@ -1644,39 +1658,39 @@ statement            := declaration
 
 empty-statement      := (";" | newline)+
 
-declaration          := identifier ":" type ("=" expression)? (";" | newline)?
-                      | identifier ":" type? parameter-list? block (";" | newline)?
-                      (* Note: parameter-list is optional for parameterless callable declarations *)
+declaration          := identifier ":" type ("=" expression)? statement-term?
+                       | identifier ":" type? parameter-list? block (";" | newline)?
+                       (* Note: parameter-list is optional for parameterless callable declarations *)
 
 type                 := identifier ("." identifier)*
 
 parameter-list       := "(" (identifier ("," identifier)*)? ")"
 
-assignment           := lvalue "=" expression (";" | newline)
-                       | lvalue "+=" expression (";" | newline)
-                       | lvalue "-=" expression (";" | newline)
+assignment           := lvalue "=" expression statement-term
+                        | lvalue "+=" expression statement-term
+                        | lvalue "-=" expression statement-term
 
-(* lvalue is a primary expression with member/index suffixes, suitable for assignment *)
+(* lvalue is an identifier (with optional member/index suffixes) suitable for assignment *)
 (* Used for: assignment targets and postfix ++/-- *)
-lvalue               := primary (lvalue-suffix)*
+lvalue               := lvalue-primary (lvalue-suffix)*
+lvalue-primary       := identifier
 lvalue-suffix        := "." identifier
-                       | "[" expression "]"
+                        | "[" expression "]"
 
-return-statement     := "=" expression statement-end
+return-statement     := "=" expression statement-term
 
-expression-statement := expression statement-end
+expression-statement := expression statement-term
 
-statement-end        := (";" | newline)?
-                       | "}"                          (* closing brace implies statement end *)
+statement-term       := ";" | newline
 
 (* Block with implicit statement terminator at closing brace *)
 block                := "{" block-body "}"
 
 block-body           := statement*
-                        (* Note: The closing '}' acts as an implicit statement terminator.
-                         * Statements ending with a block do not require an explicit semicolon.
-                         * The '}' can serve as statement-end when followed by newline or another statement
-                         *)
+                         (* Note: The closing '}' acts as an implicit statement terminator.
+                          * Statements ending with a block do not require an explicit semicolon.
+                          * The '}' terminates the statement without needing ";"
+                          *)
 
 expression           := type_comparison
 
