@@ -7,7 +7,7 @@
 
 ## 1. Introduction
 
-Sard is a prototype-based, expression-oriented scripting language where **everything is an object** — including variables, control structures, and even the language constructs themselves. **Symbol-based operators** (`+`, `-`, `*`, `/`, etc.) are syntactic primitives with fixed precedence, while **named operators** (`mod`, `and`, `or`, `not`) are implemented as extensible operator handler objects. constructs like `if`, resolve to built-in objects at runtime.
+Sard is a prototype-based, expression-oriented scripting language where **everything is an object** — including variables, control structures, and even the language constructs themselves. **Symbol-based operators** (`+`, `-`, `*`, `/`, etc.) are syntactic primitives with fixed precedence, while **named operators** (`mod`, `and`, `or`, `not`) are implemented as extensible operator handler objects. Constructs like `if` resolve to built-in objects at runtime.
 
 Key characteristics:
 - **Case-insensitive** identifiers
@@ -218,8 +218,8 @@ identifier-start     := letter | "_" | unicode-letter
                        | unicode-number-letter | unicode-other-letter
 
 identifier-continue  := identifier-start | digit
-                       | unicode-mark-enclosing | unicode-number-decimal
-                       | unicode-punctuation-connector
+                       | unicode-mark-nonspacing | unicode-mark-spacing-combining
+                       | unicode-number-decimal | unicode-punctuation-connector
 ```
 
 **Unicode Categories Used:**
@@ -709,7 +709,7 @@ Both forms operate on an lvalue operand (identifier with optional member access 
 #### Percent
 
 ```
-postfix-percent      ::= expression "%"
+postfix-percent      := expression "%"
 ```
 
 The `%` postfix operator behaves like an **accountant calculator**: it divides the operand by 100, making percentage calculations read naturally for financial computations.
