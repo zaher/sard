@@ -16,7 +16,7 @@ Key characteristics:
 - **No global scope** — lexical parent-chain scoping
 - **Blocks are expressions** — every block evaluates to a value
 - **Assignment (`=`) is a statement-level construct**; in expression contexts, `=` is equality comparison
-- **No reserved words** — built-in constructs (`if`, `while`, etc.) are ordinary objects in the root scope and can be overridden or extended via addons
+- Reserved words are limited to `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `array`, `object`). Built-in constructs (`if`, `while`, etc.) are ordinary objects in the root scope and can be overridden or extended via addons
 - **Extensible named operators** — `mod`, `and`, `or`, `not` are recognized as special tokens by the lexer, but their behavior is provided by operator handler objects that can be overridden or extended via addons. These can be shadowed by local declarations like any other identifier.
 
 ### Implementation Notes
@@ -41,7 +41,7 @@ Whitespace consists of spaces, tabs (`\t`), carriage returns (`\r`), and newline
 
 **Statement Termination:** Newlines (`\n`) and carriage return-newline pairs (`\r\n`) act as statement terminators. This allows semicolon-free style when each statement is on its own line.
 
-**Important:** Newlines terminate statements unconditionally. To continue an expression across multiple lines, the line must end with an operator or opening bracket:
+**Important:** Newlines terminate statements by default. To continue an expression across multiple lines, the line must end with an operator or opening bracket:
 
 ```sard
 // INVALID - newline terminates statement before operator
@@ -177,7 +177,7 @@ Supported escape sequences (standalone tokens):
 
 
 
-#### 2.4.7 Color Literals
+#### 2.4.6 Color Literals
 
 ```
 color-literal        := "#" [0-9a-fA-F]{6}
@@ -191,7 +191,7 @@ Stored as a DWORD (4 bytes, e.g., `0x00FF5733`).
 #FFFFFF
 ```
 
-#### 2.4.8 Currency Literals
+#### 2.4.7 Currency Literals
 
 ```
 currency-literal     := "$" [0-9]+ ("." [0-9]{1,6})?
@@ -206,7 +206,7 @@ tax = $12.3456      // 12.345600
 fraction = $0.000001 // 0.000001 (smallest unit)
 ```
 
-**Precision:** Currency values support up to 6 decimal places. Extra digits are truncated (not rounded). Operations on currency values maintain precision by using 64-bit integer arithmetic internally.
+**Precision:** Currency values support up to 6 decimal places. The lexer rejects literals with more than 6 fractional digits. Operations on currency values maintain precision by using 64-bit integer arithmetic internally.
 
 ### 2.5 Identifiers
 
@@ -228,7 +228,7 @@ identifier-continue  := identifier-start | digit
 
 **Rules:**
 - Identifiers are case-insensitive internally (stored in lowercase)
-- Reserved words is types and `true`, `false`
+- Reserved words: `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `array`, `object`)
 - Words like `if`, `while` are **built-in root-scope objects**, not keywords. They can be shadowed by local declarations or replaced via addons, though this is not recommended for readability.
 - Named operators (`mod`, `and`, `or`, `not`) are **operator handler objects** that can be defined, overridden, or extended via addons to provide custom behavior.
 
@@ -361,7 +361,7 @@ x : integer;
 y : my_module.point;
 ```
 
-### 3.2 Core Types (Built-in)
+### 3.3 Core Types (Built-in)
 
 | Type | Description | Example Literals |
 |------|-------------|------------------|
@@ -418,17 +418,17 @@ operator             := "+" | "-" | "*" | "/" | "^" | "mod"
                        | "=="                    (* type comparison, not value *)
 ```
 
-All binary operators are **left-associative**. Comparison operators support **chaining** like Python. Assignment is **right-associative** in the sense that `a = b = c` assigns the result of the comparison `(b = c)` to `a`.
+Most binary operators are **left-associative** (see the precedence table below for exceptions like `^`). Comparison operators support **chaining** like Python — `a < b < c` forms a flat chain (see grammar note below), **not** a left-associative binary tree. Assignment is **right-associative** in the sense that `a = b = c` assigns the result of the comparison `(b = c)` to `a`.
 
 Precedence (high to low):
 
 1. `^`                                           (* power - right-associative *)
 2. `*`, `/`, `mod`
 3. `+`, `-`
-4. `=`, `<>`, `!=`, `<`, `>`, `<=`, `>=`         (* chaining supported within same comparison family *)
-5. `&`, `and`
-6. `|`, `or`
-7. `==`                                          (* type comparison - no chaining *)
+4. `==`                                          (* type comparison, does NOT chain *)
+5. `=`, `<>`, `!=`, `<`, `>`, `<=`, `>=`         (* chaining supported for value comparisons *)
+6. `&`, `and`
+7. `|`, `or`
 
 ```sard
 a + b * c       // parsed as a + (b * c)
@@ -466,11 +466,11 @@ result = (a = b) and (b = c)
 
 **Note on Right-Associativity in Assignment:** The assignment statement `a = b = c` is parsed with **right-associative semantics** as `a = (b = c)`. This is because the first `=` at statement level is assignment (left-associative would imply `(a = b) = c`, which makes no sense since `a = b` returns no value for assignment).
 
-**Grammar Note:** The EBNF syntax `additive (comparison-op additive)*` captures the sequence syntactically. The semantic analyzer expands `a < b < c` into `(a < b) and (b < c)` - it does NOT parse as `((a < b) < c)`. The latter would compare a boolean to `c`, which is a type error.
+**Grammar Note:** The EBNF captures comparison chains as a flat sequence — `a < b < c` is parsed as a list of `[a, <, b, <, c]`, NOT as a left-associative binary tree `((a < b) < c)`. The semantic analyzer expands the flat chain into `(a < b) and (b < c)`. This follows Python's approach: the comparisons are never reduced as binary operations; instead each adjacent pair becomes a condition, and the full chain is the logical AND of all conditions.
 
 **Note:** `=` is **value comparison** when it appears inside an expression (e.g., inside parentheses, as an operand, or in a condition). It is **assignment** only at the statement level (see Assignment Statement).
 
-**Type Comparison (`==`):** The `==` operator checks if a value is of a **specific type** (like Pascal's `is` operator), not if two values are equal. It has the **lowest precedence** among comparison operators, allowing natural expressions like `x == integer` without parentheses. **Type comparison does NOT chain** - attempting to chain (e.g., `x == integer == boolean`) is invalid; use `or` for multiple type checks.
+**Type Comparison (`==`):** The `==` operator checks if a value is of a **specific type** (like Pascal's `is` operator), not if two values are equal. It sits at precedence level 4 (between additive and value comparison operators), allowing natural expressions like `x == integer` without parentheses. **Type comparison does NOT chain** - attempting to chain (e.g., `x == integer == boolean`) is invalid; use `or` for multiple type checks.
 
 > **Note:** Unlike C-style languages where `==` means equality, Sard uses `==` for **type checking** (Pascal-style). This is intentional and may differ from expectations if you're coming from C, Java, or JavaScript. Use `=` for value equality comparisons.
 
@@ -594,7 +594,7 @@ greet();      // Call with empty parentheses (also valid)
 ```
 
 **Block Rules:**
-- **Named blocks only:** Only named blocks are permitted, not anonymous blocks. The syntax `func { }` is invalid.
+- Anonymous blocks are permitted directly after a callable expression: `func { body }` passes the block as an argument to the callable
 - Named blocks can have an optional argument list: `myname { }` or `myname(n) { }`
 - Named blocks are only valid when they immediately follow:
   - An argument list: `if (cond) { ... } else { ... }`
@@ -611,7 +611,6 @@ obj.method()() // ERROR: cannot chain calls
 **Invalid Usage (Semantic Error):**
 ```sard
 obj.method else { print("error") };  // ERROR: named block after member access (not a call)
-func { body }  // ERROR: anonymous block not permitted
 ```
 
 The parser syntactically recognizes `else { ... }` but rejects it semantically because it follows member access (`.method`) rather than a call chain.
@@ -688,8 +687,8 @@ empty = {}         // Evaluates to null
 #### Increment and Decrement
 
 ```
-postfix-increment    ::= lvalue "++"
-postfix-decrement    ::= lvalue "--"
+postfix-increment    := lvalue "++"
+postfix-decrement    := lvalue "--"
 ```
 
 `++` and `--` are available as **postfix** operators:
@@ -757,9 +756,35 @@ result = 100 + 50%;    // 150 (special handling active)
 
 **Precedence Rule:** `%` has higher precedence than all binary operators (`*`, `/`, `+`, `-`, etc.). It binds tightly to its immediately preceding primary expression.
 
-**Context-Sensitive Parsing Note:** The accountant calculator mode (`left + X%` computing `left + left*X/100`) cannot be expressed in standard EBNF grammar. It requires context-sensitive parsing where the parser recognizes the pattern `additive (+|-) multiplicative%` at the semantic analysis stage. The EBNF strictly defines `100 + 50%` as `100 + (50%)` = `100.5`, but the interpreter applies special handling at the top level of expression statements.
+**Semantic Transformation Note:** The accountant calculator mode (`left + X%` computing `left + left*X/100`) is implemented as a **post-parse semantic transformation**: the parser builds the standard AST (`100 + (50%)` = `100.5`), then a simple rewrite pass transforms the pattern `(additive (+|-) multiplicative)%` at the top level of expression statements into `additive * (1 +/- X/100)`. The EBNF strictly defines `100 + 50%` as `100 + (50%)` = `100.5`, but the semantic transformer converts it to `100 + 100*0.5` = `150`.
 
 **Important:** Unlike `++` and `--`, `%` does **not** require an lvalue operand and does not mutate its operand. It can be applied to any expression.
+
+#### Terminal Operation Rule for `%`, `++`, `--`
+
+The `%`, `++`, and `--` postfix operators are **terminal operations** — once applied, no further postfix links (member access, index, call, block, or another terminal operator) may follow. The EBNF encodes this loosely and relies on the parser for enforcement.
+
+**Invalid patterns (semantic errors):**
+
+```sard
+x%[0]            // ERROR: percent then index — terminal op followed by access
+x[0]%[1]         // ERROR: percent then index
+x++[0]           // ERROR: increment then index
+x--.foo          // ERROR: decrement then member access
+x%++             // ERROR: percent then increment — terminal ops cannot chain
+func()%()        // ERROR: percent then call
+50%{ }           // ERROR: percent then block
+```
+
+**Valid patterns:**
+```sard
+rate = 50%;            // OK: percent at end
+x = arr[i]++;          // OK: index access then increment (arr[i] is lvalue)
+y = obj.val--;         // OK: member access then decrement
+price = 100 * 20%;     // OK: percent at end of expression, no further postfix links
+```
+
+**Rationale:** These operators return scalar/primitive values (number, boolean) — not objects with members, indices, or callability. Allowing further operations would be semantically meaningless.
 
 ---
 
@@ -769,7 +794,7 @@ result = 100 + 50%;    // 150 (special handling active)
 
 ```
 declaration          := identifier ":" type ("=" expression)? (";" | newline)?
-                      | identifier ":" type? parameter-list? block (";" | newline)?
+                      | identifier ":" type? parameter-list? block? (";" | newline)?
 ```
 
 Introduces a new variable or callable object. The semicolon is optional at end of line.
@@ -779,7 +804,9 @@ Introduces a new variable or callable object. The semicolon is optional at end o
 - `name : type = value` — declares and initializes a strictly typed variable
 - `name : { ... }` — declares a callable object with no parameters
 - `name : (params) { ... }` — declares a callable object with parameters
+- `name : type { ... }` — declares a callable with return type and no parameters
 - `name : type (params) { ... }` — declares a callable with return type and parameters
+- `name : (params)` — declares a callable signature (parameters only, no body); serves as a forward declaration or abstract interface
 
 **Type Enforcement:**
 When a variable is declared with a type annotation (`name : type`), the runtime enforces strict type safety:
@@ -808,7 +835,7 @@ foo : {
 //   -> foo is a callable object that can be invoked with foo()
 ```
 
-**Resolution:** The grammar resolves this as **callable declaration** when a block immediately follows `:`. To declare a variable initialized with a block value, use explicit assignment syntax:
+**Resolution:** The grammar resolves this as **callable declaration** when a block immediately follows `:`. An `identifier : type` without a following block or parameter list is always a **variable declaration**. To declare a variable initialized with a block value, use explicit assignment syntax:
 
 ```sard
 // Callable declaration (no = sign)
@@ -859,6 +886,7 @@ myobject = {
 **Note:**
 - `identifier : { ... }` — declares an object without executing; call later with `identifier()`
 - `identifier : (params) { ... }` — declares with parameters; call later with `identifier(args)`
+- `identifier : (params)` — declares a callable signature with no body (forward declaration); definition must be provided elsewhere
 - `identifier = { ... }` — assigns block result to identifier (immediate execution)
 
 **Declaration Ambiguity Resolution:** When a block follows a colon (`:`), it is **always** interpreted as a callable declaration, not a variable declaration with block initialization. To create a variable initialized with a block result, you **must** use the `=` assignment syntax, which immediately executes the block and stores its return value.
@@ -970,7 +998,7 @@ a = (--b) = c   // Same as above - prefix dec, comparison, assign to a
 return-statement     := "=" expression (";" | newline)
 ```
 
-Sets the block's return value. **Does NOT terminate execution** — subsequent statements continue to run. The last executed return statement determines the block's value. The semicolon is optional at end of line; return/newline acts as statement terminator.
+Sets the block's return value. **Does NOT terminate execution** — subsequent statements continue to run. The last executed return statement determines the block's value. For early exit from a block, use `break` (if defined by addon, see §9.4). The semicolon is optional at end of line; return/newline acts as statement terminator.
 
 At the statement level, a bare `= expression` (without a left-hand side) is parsed as a block return. This is unambiguous because assignment requires an `lvalue` on the left.
 
@@ -1020,7 +1048,7 @@ block-statement      := block
 
 A block used as a statement creates a new scope but does not automatically capture its return value unless assigned.
 
-**Block Termination Rule:** A `}` acts as an implicit statement terminator. Statements ending with a block visually terminate without requiring an explicit semicolon (though one is allowed). When `}` is followed by specific continuation tokens (like `else`), parsing continues to form multi-block statements (e.g., `if ... else`).
+**Block Termination Rule:** A `}` normally terminates the statement in which it appears. Statements ending with a block do not require an explicit semicolon. However, when `}` is immediately followed by a continuation token (like `else`), parsing continues to form multi-block constructs (e.g., `if ... else`). In this case, the block boundary is recognized but the outer statement does not terminate until the last block closes.
 
 ```sard
 {
@@ -1028,6 +1056,24 @@ A block used as a statement creates a new scope but does not automatically captu
     temp = temp + 1;
 }
 ```
+
+**Grammar Ambiguity:** `block` also appears as a `primary` expression (via `expression-statement`). A bare `{ ... }` as a statement is simultaneously valid as both a `block-statement` and an `expression-statement`. The parser resolves this by trying `block` before `expression-statement` — both produce the same AST, so the order does not affect behavior.
+
+```sard
+// Parsed as block-statement (not expression-statement):
+{
+    x = 1
+    x + 2
+}               // block value is discarded
+
+// Same parse tree, different path:
+//   statement → block-statement → block
+//   OR
+//   statement → expression-statement → expression → primary → block
+// Both produce identical AST. Parser priority: try block-statement first.
+```
+
+The `block` alternative in `statement` exists for clarity in the grammar. Implementations can safely parse a bare block through the `expression-statement` path and get the same result.
 
 ---
 
@@ -1155,14 +1201,21 @@ result = greet("World");
 
 Arrays are ordered, mutable collections stored as the `value` of a `SardObject`. Array literals (`[...]`) create new array objects.
 
-**Copy on Assignment:** When an array is assigned with `=`, a **shallow copy** is performed. The target variable receives a new array containing references to the same elements. Element assignment mutates only the copied array.
+**Copy on Assignment:** When an array is assigned with `=`, a **deep copy** is performed. The target variable receives a new array with a full recursive copy of all elements, including nested arrays and objects. Mutations to the copy never affect the original at any depth.
 
 ```sard
 a = [1, 2, 3];
-b = a;         // b is a shallow copy
+b = a;         // b is a deep copy
 b[0] = 99;
 print(a[0]);   // 1 — a is unaffected
 print(b[0]);   // 99
+
+// Deep copy also applies to nested elements
+nested = [[1, 2], [3, 4]];
+copy = nested;
+copy[0][0] = 99;
+print(nested[0][0]);  // 1 — nested is unaffected (deep copy)
+print(copy[0][0]);    // 99
 ```
 
 **Element Assignment:** Array element assignment updates the array at the given index.
@@ -1190,6 +1243,8 @@ The following are callable objects provided by the runtime:
 | `else` | Used with `if` for alternative branch |
 | `negate` | Numeric negation (callable version) |
 | `break` | Exits from loop or block (runtime-defined via addons, not reserved) |
+
+**Note on `else`:** `else` serves a dual role. Syntactically, `else { ... }` is parsed as a **named block** that is passed by name to the preceding callable (e.g., `if`, `while`). At the same time, `else` exists as a built-in callable object in the root scope, which is the default handler that `if` and `while` delegate to when evaluating the alternate branch. Overriding the `else` object changes the behavior of `else` blocks across all constructs.
 
 **Note:** `break` is not a reserved word and is not built into the core language. It is declared at runtime by addons and can be shadowed by local declarations or replaced with custom implementations.
 
@@ -1249,8 +1304,12 @@ These operators are built into the parser with fixed precedence tables. They can
 | `&` | Logical AND (symbol-based) |
 | `\|` | Logical OR (symbol-based) |
 | `!` | Logical NOT (symbol-based) |
-| `-` (unary) | Numeric negation |
-| `+` (unary) | Numeric identity |
+
+**Unary Operators:**
+| Operator | Behavior |
+|----------|----------|
+| `-` | Numeric negation |
+| `+` | Numeric identity |
 
 ---
 
@@ -1311,13 +1370,6 @@ print("hello", 42, true);
 **Note:** Control flow constructs (`if`, `else`, `while`, etc.) are built-in callable objects.
 
 ```sard
-// Two anonymous blocks
-if (condition) {
-    // true branch
-} {
-    // false branch
-};
-
 // Named else block
 if (x < 10) {
     print("less than 10")
@@ -1362,7 +1414,7 @@ while (n < 10) {
 - `while` requires an argument-list for the condition: `while (condition) { body }`
 - With else: `while (condition) { body } else { alt }` - else runs if condition initially false
 - **Endless loop:** `while { body }` - block-only form creates an endless loop (condition always true)
-- **Invalid:** `while (cond) { } else { }` - two blocks without naming (use `else` as named block)
+- **Valid:** `while (cond) { } else { }` — `else` is the named block; runs if condition is initially false
 
 **Style Note:** Control flow statements ending with a `}` block conventionally omit the trailing semicolon — the closing brace visually terminates the statement. The grammar accepts semicolons after all statements, but they are typically omitted for readability when a block concludes the statement.
 
@@ -1451,6 +1503,8 @@ Preprocessor regions are tokenized but left unprocessed by the interpreter. Exte
 ```
 preprocessor         := "{?" <any characters>* "?}"
 ```
+
+**Lexer Note:** The lexer must check for `{?` before `{` as a standalone token. Since `{?` is a multi-character token, it takes priority over the single-character `{` when followed immediately by `?`. Without this prioritization, `{` would be tokenized as the start of a block, preventing preprocessor region recognition.
 
 ```sard
 {?
@@ -1659,8 +1713,10 @@ statement            := declaration
 empty-statement      := (";" | newline)+
 
 declaration          := identifier ":" type ("=" expression)? statement-term?
-                       | identifier ":" type? parameter-list? block (";" | newline)?
-                       (* Note: parameter-list is optional for parameterless callable declarations *)
+                       | identifier ":" type? parameter-list? block? (";" | newline)?
+                       (* Note: parameter-list is optional for parameterless callable declarations.
+                        * When block is absent, this declares a callable signature (parameters only)
+                        * that can be defined later or serves as a forward declaration. *)
 
 type                 := identifier ("." identifier)*
 
@@ -1692,17 +1748,20 @@ block-body           := statement*
                           * The '}' terminates the statement without needing ";"
                           *)
 
-expression           := type_comparison
-
-type_comparison      := logical_or ("==" logical_or)?   (* Type comparison - like Pascal `is`, lowest precedence. NO chaining - at most one == *)
+expression           := logical_or
 
 logical_or           := logical_and (("|" | "or") logical_and)*
 
 logical_and          := comparison (("&" | "and") comparison)*
 
-comparison           := additive (("=" | "<>" | "!=" | "<" | ">" | "<=" | ">=") additive)*
-                       (* Chaining: a < b < c is parsed as a < b < c and transformed to (a < b) and (b < c) *)
-                       (* Left-associative parsing captures the chain, semantic analysis expands it *)
+comparison           := type-comparison (("=" | "<>" | "!=" | "<" | ">" | "<=" | ">=") type-comparison)*
+                        (* Chaining: a < b < c is captured as a flat sequence [a, <, b, <, c]
+                         * and semantically expanded to (a < b) and (b < c) — like Python.
+                         * The parser must NOT build a left-associative binary tree;
+                         * instead it collects the chain as a flat list for later expansion. *)
+
+type-comparison      := additive ("==" additive)?      (* Type comparison - like Pascal `is`; does NOT chain *)
+                        (* Higher precedence than value comparisons — binds tighter than =, <>, <, etc. *)
 
 additive             := multiplicative (("+" | "-") multiplicative)*
 
@@ -1730,11 +1789,15 @@ postfix-link         := postfix-access
 postfix-access       := "[" expression "]" 
                       | "." identifier
 
-(* Call operations: at most ONE allowed per postfix chain, no chaining like func()() *)
-(* Semantic constraint: only ONE postfix-call allowed; func()() is invalid *)
-(* Call may be followed by optional anonymous block: if (cond) { } *)
+(* Call operations: argument-list and named-block are separate call forms.
+ * Multiple named-blocks can appear in a chain (if/else-if/else).
+ * At most ONE argument-list is allowed per postfix chain.
+ * func()() is invalid — the result of a call cannot be called again.
+ * Standard EBNF cannot express "at most one" — this constraint is enforced
+ * by the parser: after an argument-list is consumed, subsequent postfix-call
+ * links may only contain named-blocks. *)
 postfix-call         := argument-list block?
-                      | named-block
+                       | named-block
 
 (* Final postfix operations: end the chain, no further operations allowed *)
 postfix-final        := postfix-percent
@@ -1742,7 +1805,7 @@ postfix-final        := postfix-percent
 
 postfix-percent      := "%"
 
-postfix-inc-dec      := "++" | "--"
+postfix-inc-dec      := ("++" | "--")    (* Semantic constraint: the entire preceding postfix chain must be an lvalue (identifier, member access, or index); enforced by semantic analysis *)
 
 named-block          := identifier argument-list? block
                       (* SYNTACTIC CONSTRAINT: Named blocks can only follow: *)
