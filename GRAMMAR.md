@@ -156,6 +156,12 @@ x = "line1" \n "line2"  // x = "line1" + newline + "line2"
 - It starts with `\` followed immediately by a valid escape character
 - It is adjacent to (or separated by whitespace from) string literals or other escape sequences
 
+```
+escape-sequence      := <backslash> ("n" | "r" | "t" | <backslash> | "0")
+```
+
+Escape sequences are standalone tokens that appear outside string literals and are concatenated with adjacent strings at the tokenization stage.
+
 Supported escape sequences (standalone tokens):
 
 | Escape | Value |
@@ -180,7 +186,9 @@ Supported escape sequences (standalone tokens):
 #### 2.4.6 Color Literals
 
 ```
-color-literal        := "#" [0-9a-fA-F]{6}
+color-literal        := "#" hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit
+
+hex-digit            := [0-9a-fA-F]
 ```
 
 Stored as a DWORD (4 bytes, e.g., `0x00FF5733`).
@@ -194,7 +202,12 @@ Stored as a DWORD (4 bytes, e.g., `0x00FF5733`).
 #### 2.4.7 Currency Literals
 
 ```
-currency-literal     := "$" [0-9]+ ("." [0-9]{1,6})?
+currency-literal     := "$" [0-9]+ ("." fractional-digits)?
+
+fractional-digits    := [0-9] | [0-9] [0-9] | [0-9] [0-9] [0-9]
+                        | [0-9] [0-9] [0-9] [0-9]
+                        | [0-9] [0-9] [0-9] [0-9] [0-9]
+                        | [0-9] [0-9] [0-9] [0-9] [0-9] [0-9]
 ```
 
 Currency literals represent fixed-point decimal values with 6 fractional digits, stored internally as a signed 64-bit integer (similar to Pascal's `Currency` type or `DECIMAL(16, 6)`). The `$` prefix denotes the currency type. Values are stored as integer number of units × 10^6 (1,000,000 = 1.0).
@@ -211,15 +224,18 @@ fraction = $0.000001 // 0.000001 (smallest unit)
 ### 2.5 Identifiers
 
 ```
+letter               := [a-zA-Z]
+
+digit                := [0-9]
+
 identifier           := identifier-start identifier-continue*
 
 identifier-start     := letter | "_" | unicode-letter
-                       | unicode-mark-nonspacing | unicode-mark-spacing-combining
-                       | unicode-number-letter | unicode-other-letter
+                        | unicode-number-letter | unicode-other-letter
 
 identifier-continue  := identifier-start | digit
-                       | unicode-mark-nonspacing | unicode-mark-spacing-combining
-                       | unicode-number-decimal | unicode-punctuation-connector
+                        | unicode-mark-nonspacing | unicode-mark-spacing-combining
+                        | unicode-number-decimal | unicode-punctuation-connector
 ```
 
 **Unicode Categories Used:**
@@ -381,12 +397,12 @@ y : my_module.point;
 ### 4.1 Literal Expressions
 
 ```
-literal-expression   := integer-literal
-                        | number-literal
-                        | hex-literal
-                        | string-literal
-                        | color-literal
-                        | currency-literal
+literal              := integer-literal
+                         | number-literal
+                         | hex-literal
+                         | string-literal
+                         | color-literal
+                         | currency-literal
 ```
 
 ### 4.2 Identifier Expressions
@@ -490,13 +506,13 @@ is_number = (x == integer) or (x == number)   // true if x is integer OR x is nu
 ### 4.5 Unary Expressions
 
 ```
-unary-expression   := "-" unary
-                      | "+" unary
-                      | "!" unary
-                      | "not" unary
-                      | "++" lvalue
-                      | "--" lvalue
-                      | postfix
+unary                := "-" unary
+                        | "+" unary
+                        | "!" unary
+                        | "not" unary
+                        | "++" lvalue
+                        | "--" lvalue
+                        | postfix
 ```
 
 The unary operators `-`, `+`, `!`, and `not` are right-associative and have the same precedence level. Pre-increment `++` and pre-decrement `--` also share this precedence level but require an `lvalue` operand (identifier with optional member/index access), not any unary expression.
@@ -557,20 +573,24 @@ p3.x = 99;
 print(p1.x);        // 99
 ```
 
-### 4.7 Function Calls
+### 4.7 Postfix and Call Expressions
 
 ```
-function-call        := callee postfix-link*
+postfix              := primary (postfix-link)*
 
-callee               := expression
+postfix-link         := postfix-access
+                        | postfix-call
+                        | block
+                        | postfix-final
 
-postfix-link         := "." identifier
-                       | "[" expression "]"
-                       | argument-list block?
-                       | named-block
-                       | block
-                       | "%"
-                       | "++" | "--"
+postfix-access       := "." identifier
+                        | "[" expression "]"
+
+postfix-call         := argument-list block?
+                        | named-block
+
+postfix-final        := "%"
+                        | "++" | "--"
 
 argument-list        := "(" (expression ("," expression)*)? ")"
 
@@ -580,6 +600,13 @@ named-block          := identifier argument-list? block
 Functions are callable objects. They can accept:
 - An argument list: `func()` or `func(a, b)`
 - Named blocks (`identifier block`): `if (cond) { } else { }`
+
+**Postfix Chain Rules:**
+- `postfix-access` (member/index) and `postfix-call` (argument list with optional block, or named block) are non-terminal links — further postfix operations may follow.
+- `postfix-final` (`%`, `++`, `--`) are **terminal operations** — no further postfix links may follow them.
+- `block` as a postfix link is non-terminal if followed by a named block continuation (e.g., `else`).
+- At most one `argument-list` is allowed per postfix chain (no call chaining like `func()()`).
+- Named blocks can only follow an `argument-list`, an anonymous `block`, or another named block (enforced semantically, not by EBNF).
 
 **Calling with No Arguments:** Callable objects with no arguments can be called without parentheses by using just the identifier name. This is a semantic rule: when an identifier expression used as a statement resolves to a callable object, it is implicitly invoked.
 
@@ -648,7 +675,7 @@ mixed = [1, "hello", true];
 ### 4.9 Array Indexing
 
 ```
-array-index          := primary "[" expression "]"
+array-index          := postfix "[" expression "]"
 ```
 
 ```sard
@@ -657,10 +684,14 @@ first = nums[0];       // 10
 nums[1] = 99;          // update element
 ```
 
+> **Note:** `postfix` is the non-terminal from the EBNF summary that includes `primary` followed by any chain of member access, index, call, or block links (see Section 4.7).
+
 ### 4.10 Block Expressions
 
 ```
-block-expression     := "{" statement* "}"
+block                := "{" block-body "}"
+
+block-body           := statement*
 ```
 
 Blocks can appear anywhere an expression is expected. They create a new child scope and evaluate to the value of the last statement:
@@ -687,11 +718,10 @@ empty = {}         // Evaluates to null
 #### Increment and Decrement
 
 ```
-postfix-increment    := lvalue "++"
-postfix-decrement    := lvalue "--"
+postfix-inc-dec      := "++" | "--"
 ```
 
-`++` and `--` are available as **postfix** operators:
+`++` and `--` are available as **postfix** operators (terminal operations in the postfix chain):
 
 ```sard
 x = 5;
@@ -709,10 +739,10 @@ Both forms operate on an lvalue operand (identifier with optional member access 
 #### Percent
 
 ```
-postfix-percent      := expression "%"
+postfix-percent      := "%"
 ```
 
-The `%` postfix operator behaves like an **accountant calculator**: it divides the operand by 100, making percentage calculations read naturally for financial computations.
+The `%` postfix operator behaves like an **accountant calculator**: it divides the operand by 100, making percentage calculations read naturally for financial computations. It is a **terminal operation** — once applied, no further postfix links may follow (see Terminal Operation Rule below).
 
 **Standard Behavior (Standard Precedence):**
 
@@ -793,8 +823,8 @@ price = 100 * 20%;     // OK: percent at end of expression, no further postfix l
 ### 5.1 Declaration Statement
 
 ```
-declaration          := identifier ":" type ("=" expression)? (";" | newline)?
-                      | identifier ":" type? parameter-list? block? (";" | newline)?
+declaration          := identifier ":" type ("=" expression)? statement-term?
+                       | identifier ":" type? parameter-list? block? statement-term?
 ```
 
 Introduces a new variable or callable object. The semicolon is optional at end of line.
@@ -910,9 +940,9 @@ y = 2;   // newline acts as terminator
 ### 5.3 Assignment Statement
 
 ```
-assignment           := lvalue "=" expression (";" | newline)
-                       | lvalue "+=" expression (";" | newline)
-                       | lvalue "-=" expression (";" | newline)
+assignment           := lvalue "=" expression statement-term
+                        | lvalue "+=" expression statement-term
+                        | lvalue "-=" expression statement-term
 
 lvalue               := lvalue-primary (lvalue-suffix)*
 lvalue-primary       := identifier
@@ -961,7 +991,7 @@ result = (x)    // First evaluate (x), then assign to result
 result = 5      // Now assign to result
 ```
 
-For array values, assignment performs a **shallow copy** (see Array Semantics).
+For array values, assignment performs a **deep copy** (see Array Semantics).
 
 **Context-Dependent Meaning of `=` (Three Meanings by Design):**
 
@@ -995,7 +1025,7 @@ a = (--b) = c   // Same as above - prefix dec, comparison, assign to a
 ### 5.4 Return Statement
 
 ```
-return-statement     := "=" expression (";" | newline)
+return-statement     := "=" expression statement-term
 ```
 
 Sets the block's return value. **Does NOT terminate execution** — subsequent statements continue to run. The last executed return statement determines the block's value. For early exit from a block, use `break` (if defined by addon, see §9.4). The semicolon is optional at end of line; return/newline acts as statement terminator.
@@ -1030,7 +1060,7 @@ result = {
 ### 5.5 Expression Statement
 
 ```
-expression-statement := expression (";" | newline)
+expression-statement := expression statement-term
 ```
 
 Any expression can be used as a statement (e.g., function calls with side effects). The semicolon is optional at end of line.
@@ -1704,16 +1734,18 @@ The interpreter raises three categories of errors:
 program              := statement*
 
 statement            := declaration
-                       | empty-statement
-                       | assignment
-                       | return-statement
-                       | expression-statement
-                       | block
+                        | empty-statement
+                        | assignment
+                        | return-statement
+                        | expression-statement
+                        | block-statement
+
+block-statement      := block
 
 empty-statement      := (";" | newline)+
 
 declaration          := identifier ":" type ("=" expression)? statement-term?
-                       | identifier ":" type? parameter-list? block? (";" | newline)?
+                        | identifier ":" type? parameter-list? block? statement-term?
                        (* Note: parameter-list is optional for parameterless callable declarations.
                         * When block is absent, this declares a callable signature (parameters only)
                         * that can be defined later or serves as a forward declaration. *)
@@ -1815,13 +1847,14 @@ named-block          := identifier argument-list? block
                       (* The EBNF above cannot express this constraint - it must be enforced by the parser. *)
 
 primary              := literal
-                       | identifier
-                       | "(" expression ")"
-                       | block
-                       | "~" identifier
-                       | "~~" identifier
-                       | "@" expression
-                       | array-literal
+                        | identifier
+                        | qualified-identifier
+                        | "(" expression ")"
+                        | block
+                        | "~" identifier
+                        | "~~" identifier
+                        | "@" expression
+                        | array-literal
 
 literal              := integer-literal
                         | number-literal
