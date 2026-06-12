@@ -136,17 +136,12 @@ begin
 end;
 
 procedure FreeSardObject(Obj: PSardObject);
-var
-  I: Integer;
 begin
   if Obj = nil then Exit;
-  for I := 0 to Length(Obj^.Members) - 1 do
-    FreeSardObject(Obj^.Members[I].Value);
   SetLength(Obj^.Members, 0);
   Obj^.Params.Free;
-  for I := 0 to Obj^.ElementCount - 1 do
-    FreeSardObject(Obj^.Elements[I]);
   SetLength(Obj^.Elements, 0);
+  Obj^.ElementCount := 0;
   Dispose(Obj);
 end;
 

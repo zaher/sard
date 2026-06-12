@@ -377,16 +377,20 @@ begin
   end
   else if FirstChild^.NodeType = ntBlockExpr then
   begin
-    Obj := SardCallable;
-    Obj^.IsCallable := True;
-    Obj^.StrValue := '';
-    Obj^.Params.Clear;
-    Obj^.Body := FirstChild;
-    Obj^.ScopeParent := Scope;
     BlockScope := SardObjectNew;
     BlockScope^.ScopeParent := Scope;
-    ObjSetMember(Scope, Name, Obj);
-    Result := Obj;
+    BlockScope^.ObjType := objObject;
+    for I := 0 to FirstChild^.ChildCount - 1 do
+    begin
+      try
+        ExecStatement(FirstChild^.Children[I], BlockScope);
+      except
+        on EReturnSignal do
+          ;
+      end;
+    end;
+    ObjSetMember(Scope, Name, BlockScope);
+    Result := BlockScope;
     Exit;
   end
   else
@@ -737,13 +741,12 @@ begin
 
     ntArrayLiteral:
     begin
+      Result := CreateSardObject;
+      Result^.ObjType := objArray;
+      Result^.ElementCount := Node^.ChildCount;
       SetLength(Result^.Elements, Node^.ChildCount);
       for I := 0 to Node^.ChildCount - 1 do
-      begin
         Result^.Elements[I] := EvalNode(Node^.Children[I], Scope);
-      end;
-      Result^.ElementCount := Node^.ChildCount;
-      Result^.ObjType := objArray;
     end;
 
     ntPostfixPercent:
