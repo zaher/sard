@@ -1,4 +1,4 @@
-// ERR04.sard - Newline in Expression
+// Newline in Expression
 // ERROR: Newline terminates expression before operator
 x = 1
     + 2      // Parsed as: x = 1; +2; (second statement is invalid)

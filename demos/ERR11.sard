@@ -1,4 +1,4 @@
-// ERR14.sard - Invalid Array Operations
+// Invalid Array Operations
 // ERROR: Index out of bounds (runtime error, not syntax error)
 arr = [1, 2, 3]
 // val = arr[100]  // Runtime error: index 100 out of bounds

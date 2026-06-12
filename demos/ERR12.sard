@@ -1,4 +1,4 @@
-// ERR15.sard - Invalid While Loop Syntax
+// Invalid While Loop Syntax
 // ERROR: While with two blocks without naming
 while (x < 10) { } { }  // Two anonymous blocks - invalid
 

@@ -1,4 +1,4 @@
-// ERR09.sard - Invalid Return Statement Usage
+// Invalid Return Statement Usage
 // ERROR: Return statement inside expression context
 result = (= 5)
 

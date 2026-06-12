@@ -1,4 +1,4 @@
-// ERR01.sard - Invalid Identifiers
+// Invalid Identifiers
 // ERROR: Cannot start with digit
 123abc = 5
 

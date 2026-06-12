@@ -1,4 +1,4 @@
-// ERR05.sard - Invalid Assignment Targets
+// Invalid Assignment Targets
 // ERROR: Cannot assign to expression in parentheses
 (x) = 5         // (x) is expression, not lvalue
 

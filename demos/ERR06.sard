@@ -1,4 +1,4 @@
-// ERR06.sard - Invalid Prefix Inc/Dec
+// Invalid Prefix Inc/Dec
 // ERROR: Cannot increment/decrement non-lvalue
 
 --(x + y)       // Expression result not lvalue

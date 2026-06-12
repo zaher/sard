@@ -1,4 +1,4 @@
-// ERR13.sard - Reserved Word Confusion (Not Actually Reserved)
+// Reserved Word Confusion (Not Actually Reserved)
 // Actually this IS valid since true/false/if/while are not reserved words!
 // These should all work (shadowing built-ins):
 true = 5        // Shadows built-in true

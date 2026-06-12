@@ -1,4 +1,4 @@
-// ERR08.sard - Invalid Named Block Placement
+// Invalid Named Block Placement
 // ERROR: Named block after member access (not after a call)
 obj.method else { print("error") }
 

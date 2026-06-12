@@ -1,4 +1,4 @@
-// ERR03.sard - Invalid Color Literals
+// Invalid Color Literals
 // ERROR: Wrong length
 short = #ffff
 long = #ff57330

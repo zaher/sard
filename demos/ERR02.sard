@@ -1,4 +1,4 @@
-// ERR02.sard - Invalid String/Escape Sequences
+// Invalid String/Escape Sequences
 // ERROR: Missing closing quote
 unterminated = "Hello, World!
 

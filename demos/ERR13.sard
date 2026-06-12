@@ -1,0 +1,6 @@
+// Invalid Assign in stricted variable
+x: Integer
+
+x = "10" // Valid x now have 10
+
+x = "test" // ERROR runtime, can not assign string "test" to integer
