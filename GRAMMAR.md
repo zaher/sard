@@ -672,6 +672,22 @@ nums = [1, 2, 3, 4];
 mixed = [1, "hello", true];
 ```
 
+#### Array Multiplication (Declaration with Repeated Elements)
+
+```
+array-multiplication   := "[" expression "]" "*" integer-literal
+```
+
+Arrays can be declared with multiple elements of the same value using the multiplication operator `*`. The expression inside the brackets is the initial value, and the integer literal specifies how many times to repeat it.
+
+```sard
+arr = [0] * 3      // declare with 3 elements of zeros: [0, 0, 0]
+zeros = [0] * 10   // array of 10 zeros
+ones = [1] * 5     // array of 5 ones: [1, 1, 1, 1, 1]
+fives = [5] * 4    // array of 4 fives: [5, 5, 5, 5]
+strs = [""] * 3    // array of 3 empty strings: ["", "", ""]
+```
+
 ### 4.9 Array Indexing
 
 ```

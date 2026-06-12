@@ -898,6 +898,7 @@ function TSardInterpreter.BinaryOp(Left: PSardObject; const Op: string; Right: P
 var
   LV, RV: Double;
   IntResult: Int64;
+  Count, AI, AJ: Integer;
 begin
   if Op = '+' then
   begin
@@ -943,7 +944,45 @@ begin
   end
   else if Op = '*' then
   begin
-    if (Left^.ObjType = objCurrency) or (Right^.ObjType = objCurrency) then
+    if Left^.ObjType = objArray then
+    begin
+      Count := Trunc(NumVal(Right));
+      Result := CreateSardObject;
+      Result^.ObjType := objArray;
+      if Count <= 0 then
+      begin
+        Result^.ElementCount := 0;
+        SetLength(Result^.Elements, 0);
+      end
+      else
+      begin
+        Result^.ElementCount := Left^.ElementCount * Count;
+        SetLength(Result^.Elements, Result^.ElementCount);
+        for AI := 0 to Count - 1 do
+          for AJ := 0 to Left^.ElementCount - 1 do
+            Result^.Elements[AI * Left^.ElementCount + AJ] := DeepCopy(Left^.Elements[AJ]);
+      end;
+    end
+    else if Right^.ObjType = objArray then
+    begin
+      Count := Trunc(NumVal(Left));
+      Result := CreateSardObject;
+      Result^.ObjType := objArray;
+      if Count <= 0 then
+      begin
+        Result^.ElementCount := 0;
+        SetLength(Result^.Elements, 0);
+      end
+      else
+      begin
+        Result^.ElementCount := Right^.ElementCount * Count;
+        SetLength(Result^.Elements, Result^.ElementCount);
+        for AI := 0 to Count - 1 do
+          for AJ := 0 to Right^.ElementCount - 1 do
+            Result^.Elements[AI * Right^.ElementCount + AJ] := DeepCopy(Right^.Elements[AJ]);
+      end;
+    end
+    else if (Left^.ObjType = objCurrency) or (Right^.ObjType = objCurrency) then
     begin
       if (Right^.ObjType in [objInteger, objNumber]) and (Left^.ObjType = objCurrency) then
       begin

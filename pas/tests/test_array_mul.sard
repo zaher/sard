@@ -1,0 +1,31 @@
+// Array multiplication: [expr] * N creates N copies
+arr = [0] * 3
+print(arr[0])
+print(arr[1])
+print(arr[2])
+
+// Single element repeated
+ones = [1] * 5
+print(ones[0])
+print(ones[4])
+
+// Multi-element array repeated
+pairs = [1, 2] * 3
+print(pairs[0])
+print(pairs[1])
+print(pairs[2])
+print(pairs[3])
+print(pairs[4])
+print(pairs[5])
+
+// String array multiplication
+strs = ["hi"] * 2
+print(strs[0])
+print(strs[1])
+
+// Access len via loop
+i = 0
+while (i < 3) {
+    print(arr[i])
+    i += 1
+}

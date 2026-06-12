@@ -151,6 +151,9 @@ literal
     | ESCAPE_SEQ
     ;
 
+// Array multiplication: [expr] * N creates array of N repeated copies
+// e.g., [0] * 3 -> [0, 0, 0]. Parsed via multiplicativeExpr and handled
+// by the runtime when the left operand is an array (or right operand).
 arrayLiteral
     : LBRACKET (expression (COMMA expression)*)? RBRACKET
     ;
