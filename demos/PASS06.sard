@@ -1,4 +1,4 @@
-// PASS06.sard - Increment and Decrement
+// Increment and Decrement
 // Prefix increment
 a = 5
 b = ++a      // a = 6, b = 6

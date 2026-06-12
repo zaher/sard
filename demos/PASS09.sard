@@ -1,4 +1,4 @@
-// PASS09.sard - Block Expressions
+// Block Expressions
 // Simple block
 result = {
     a = 5

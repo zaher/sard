@@ -1,4 +1,4 @@
-// PASS14.sard - While Loops
+// While Loops
 // Simple while loop
 count = 0
 while (count < 10) {

@@ -1,4 +1,4 @@
-// PASS11.sard - Arrays and Indexing
+// Arrays and Indexing
 // Empty array
 empty = []
 
@@ -29,6 +29,11 @@ nums[2] = 300
 a = [1, 2, 3]
 b = a         // b is shallow copy
 b[0] = 99     // a[0] still 1 (shallow copy)
+
+arr = [0] * 3 // declare with 3 elements of zeros
+// Array compound assignment
+arr[0] += 10
+arr[1] -= 5
 
 // Array in object
 obj : {

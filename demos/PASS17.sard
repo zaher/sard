@@ -1,4 +1,4 @@
-// PASS17.sard - Named Operators
+// Named Operators
 // Named operators work like symbol operators
 // mod (modulo)
 r1 = 17 mod 5    // 2

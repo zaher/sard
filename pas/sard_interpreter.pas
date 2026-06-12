@@ -530,7 +530,7 @@ var
   Child: PSardNode;
   BlocksArr: array of PSardNode;
   InnerCall: PSardNode;
-  BodyIdx, NBBlockIdx: Integer;
+  BodyIdx, NBBlockIdx, OpCount: Integer;
 begin
   case Node^.NodeType of
     ntLiteral:
@@ -601,7 +601,7 @@ begin
 
     ntComparisonChain:
     begin
-      SetLength(Ops, 0);
+      OpCount := 0;
       for J := 0 to Node^.ChildCount - 1 do
       begin
         Child := Node^.Children[J];
@@ -610,21 +610,16 @@ begin
             (Child^.StrValue = '!=') or (Child^.StrValue = '<') or
             (Child^.StrValue = '>') or (Child^.StrValue = '<=') or
             (Child^.StrValue = '>=')) then
-        begin
-          SetLength(Ops, Length(Ops) + 1);
-          Ops[Length(Ops) - 1] := Child^.StrValue;
-        end;
+          Inc(OpCount)
+        else
+          Break;
       end;
-      SetLength(Operands, 0);
-      for J := 0 to Node^.ChildCount - 1 do
-      begin
-        Child := Node^.Children[J];
-        if Child^.NodeType <> ntIdentifier then
-        begin
-          SetLength(Operands, Length(Operands) + 1);
-          Operands[Length(Operands) - 1] := EvalNode(Child, Scope);
-        end;
-      end;
+      SetLength(Ops, OpCount);
+      for J := 0 to OpCount - 1 do
+        Ops[J] := Node^.Children[J]^.StrValue;
+      SetLength(Operands, Node^.ChildCount - OpCount);
+      for J := 0 to Length(Operands) - 1 do
+        Operands[J] := EvalNode(Node^.Children[OpCount + J], Scope);
       Result_ := SardBoolean(True);
       for J := Low(Ops) to High(Ops) do
       begin

@@ -1,4 +1,4 @@
-// PASS18.sard - Scoping Rules
+// Scoping Rules
 // Global variable
 outer = 10
 

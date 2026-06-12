@@ -1,4 +1,4 @@
-// PASS20.sard - Complex Nesting and Recursion
+// Complex Nesting and Recursion
 // Recursive factorial
 factorial : (n) {
     = if (n <= 1) {

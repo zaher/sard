@@ -1,4 +1,4 @@
-// PASS02.sard - Escape Sequences and String Concatenation
+// Escape Sequences and String Concatenation
 // Standalone escape sequences (outside string literals)
 new_line = \n
 greeting = "Hello" \n "World"

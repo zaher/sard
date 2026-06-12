@@ -1,4 +1,4 @@
-// PASS05.sard - Arithmetic and Binary Operators
+// Arithmetic and Binary Operators
 // Basic arithmetic
 a = 10 + 5
 b = 10 - 5

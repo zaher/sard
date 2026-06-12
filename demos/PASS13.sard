@@ -1,4 +1,4 @@
-// PASS13.sard - Control Flow (if/else)
+// Control Flow (if/else)
 // Simple if with condition
 if (x > 0) {
     print("positive")

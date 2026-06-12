@@ -1,4 +1,4 @@
-// PASS08.sard - Percent Operator (Accountant Calculator)
+// Percent Operator (Accountant Calculator)
 // Basic percent (divides by 100)
 rate = 50%            // 0.5
 tax_rate = 15%        // 0.15

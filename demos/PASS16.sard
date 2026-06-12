@@ -1,4 +1,4 @@
-// PASS16.sard - Complex Examples (Bank Account Pattern)
+// Complex Examples (Bank Account Pattern)
 bank_account : {
     balance : integer = 0
     

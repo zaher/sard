@@ -1,4 +1,4 @@
-// PASS12.sard - Callable Objects (Functions)
+// Callable Objects (Functions)
 // Simple callable with no parameters
 greet : {
     = "Hello, World!"

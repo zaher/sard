@@ -1,4 +1,4 @@
-// PASS15.sard - Qualified Identifiers (Member Access)
+// Qualified Identifiers (Member Access)
 // Object with nested members
 app : {
     config : {

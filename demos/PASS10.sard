@@ -1,4 +1,4 @@
-// PASS10.sard - Object Construction
+// Object Construction
 // Base prototype
 point : {
     x : integer = 0

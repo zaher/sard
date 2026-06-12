@@ -1,4 +1,4 @@
-// PASS03.sard - Unicode Identifiers
+// Unicode Identifiers
 // ASCII identifiers
 foo = 1
 my_var = 2
