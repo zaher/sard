@@ -24,6 +24,7 @@ string here'
 c1 = #ff5733
 c2 = #000000
 c3 = #FFFFFF
+c4 = #fff
 
 // Boolean (built-in objects, not literals)
 flag = true

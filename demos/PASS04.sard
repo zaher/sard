@@ -9,13 +9,6 @@ x = 1  // inline comment
 
 y = 2
 
-{* Block comment style
-   Can contain other block comments: {* nested *}
-   And single line: // comments inside
-   And multi: /* inside block */ *}
-
-z = 3
-
 // Multiple single-line comments
 // line 1
 // line 2

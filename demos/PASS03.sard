@@ -8,10 +8,7 @@ _underscore = 5
 _private = 6  // convention: leading underscore
 
 // Unicode identifiers
-manana = 7     // ñ - Spanish
-chinese = 8    // 你好
-japanese = 9   // こんにちは
-greek = 10     // Φυσική
-
-// Unicode with combining marks
-combined = 11   // e.g., n + combining tilde
+ñ = 7     // ñ - Spanish
+你好 = 8    // 你好
+こんにちは = 9   // こんにちは
+Φυσική = 10     // Φυσική

@@ -59,28 +59,22 @@ x = (1
 
 ### 2.3 Comments
 
-Three comment styles are supported:
+Two comment styles are supported:
 
 ```
 single-line-comment  := "//" <any characters except newline>* newline
 multi-line-comment   := "/*" <any characters>* "*/"
-block-comment        := "{*" <any characters>* "*}"
 ```
 
-Comments nest **only** in the `{* ... *}` style. `/* ... */` does **not** nest.
+`/* ... */` does **not** nest.
 
 ```sard
 // This is a single-line comment
 
 /*
  * This is a multi-line comment
- * // nested block comments do NOT work here
+ * // nested comments do NOT work here
  */
-
-{*
-   Block comments can span anything,
-   including other block comments {* nested *}.
-*}
 ```
 
 ### 2.4 Tokens
