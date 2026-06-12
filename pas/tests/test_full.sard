@@ -1,0 +1,34 @@
+// Variables and arithmetic
+x : integer = 10
+y : integer = 20
+area = x * y
+print(area)
+
+// String concatenation
+name = "Sard"
+print("Hello " + name)
+
+// If/else
+if (area > 100) {
+    print("big area")
+} else {
+    print("small area")
+}
+
+// While loop
+i = 0
+while (i < 5) {
+    print(i)
+    i += 1
+}
+
+// Callable objects
+add : (a, b) {
+    = a + b
+}
+result = add(3, 4)
+print(result)
+
+// Array
+nums = [1, 2, 3]
+print(nums[0])
