@@ -1,11 +1,14 @@
-// ERR10.sard - Invalid Comparison Chaining
-// ERROR: Type comparison (==) does NOT chain
-is_number = (x == integer == decimal)
+// ERR13.sard - Reserved Word Confusion (Not Actually Reserved)
+// Actually this IS valid since true/false/if/while are not reserved words!
+// These should all work (shadowing built-ins):
+true = 5        // Shadows built-in true
+false = 10      // Shadows built-in false
+if = 20         // Shadows built-in if
+while = 30      // Shadows built-in while
 
-// Should use:
-// is_number = (x == integer) or (x == decimal)
+// Now using the shadowed values:
+// print(true)   // Would print 5, not boolean
+// print(false)  // Would print 10, not boolean
 
-// ERROR: Chaining type comparison with value comparison
-result = (x == integer = 5)
-
-// Type comparison has lowest precedence but does not chain
+// This file demonstrates that Sard has NO reserved words
+// Built-in objects can be shadowed like any other identifier

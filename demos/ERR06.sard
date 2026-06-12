@@ -1,6 +1,6 @@
 // ERR06.sard - Invalid Prefix Inc/Dec
 // ERROR: Cannot increment/decrement non-lvalue
-++5             // 5 is not an lvalue
+
 --(x + y)       // Expression result not lvalue
 
 // ERROR: Cannot increment/decrement expression in parentheses

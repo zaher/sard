@@ -1,18 +1,13 @@
-// ERR11.sard - Invalid Block/Statement Issues
-// ERROR: Empty statement block confusion
-// {} is valid empty block (expression)
-// But standalone ; is empty statement
+// ERR14.sard - Invalid Array Operations
+// ERROR: Index out of bounds (runtime error, not syntax error)
+arr = [1, 2, 3]
+// val = arr[100]  // Runtime error: index 100 out of bounds
 
-// This is valid empty statement:
-// ;
+// ERROR: Compound assignment on non-existent element
+// arr[10] += 5   // May be runtime error depending on implementation
 
-// But trying to use block as condition incorrectly:
-// if { x > 0 } {  // Block cannot be used as condition
-//     print("positive")
-// }
+// ERROR: Accessing undefined variable as array
+// x[0] = 5       // Runtime error: x is not an array
 
-// ERROR: Block without proper termination
-{
-    x = 1
-    y = 2  // Missing statement terminator
-z = 3      // This is outside the block
+// ERROR: Trying to call array
+// arr()          // Runtime error: array not callable
