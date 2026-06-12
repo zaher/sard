@@ -902,7 +902,18 @@ var
 begin
   if Op = '+' then
   begin
-    if (Left^.ObjType = objString) or (Right^.ObjType = objString) then
+    if (Left^.ObjType = objArray) and (Right^.ObjType = objArray) then
+    begin
+      Result := CreateSardObject;
+      Result^.ObjType := objArray;
+      Result^.ElementCount := Left^.ElementCount + Right^.ElementCount;
+      SetLength(Result^.Elements, Result^.ElementCount);
+      for AI := 0 to Left^.ElementCount - 1 do
+        Result^.Elements[AI] := DeepCopy(Left^.Elements[AI]);
+      for AJ := 0 to Right^.ElementCount - 1 do
+        Result^.Elements[Left^.ElementCount + AJ] := DeepCopy(Right^.Elements[AJ]);
+    end
+    else if (Left^.ObjType = objString) or (Right^.ObjType = objString) then
       Result := SardString(ObjToString(Left) + ObjToString(Right))
     else if (Left^.ObjType = objCurrency) or (Right^.ObjType = objCurrency) then
     begin

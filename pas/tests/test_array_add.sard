@@ -1,0 +1,35 @@
+// Array addition: arr + [...] creates new array with appended elements
+arr = []
+arr = arr + [10]
+print(arr[0])
+
+// Compound assignment
+arr += [20]
+print(arr[1])
+
+// Multiple elements
+arr = arr + [30, 40]
+print(arr[2])
+print(arr[3])
+
+// Combine with array multiplication
+base = [0] * 3
+extended = base + [1, 2]
+print(extended[0])
+print(extended[1])
+print(extended[2])
+print(extended[3])
+print(extended[4])
+
+// Empty array + empty array
+e = [] + []
+print(e)
+
+// Array addition preserving original
+a = [1, 2]
+b = a + [3]
+print(a[0])
+print(a[1])
+print(b[0])
+print(b[1])
+print(b[2])

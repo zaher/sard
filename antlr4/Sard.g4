@@ -154,6 +154,11 @@ literal
 // Array multiplication: [expr] * N creates array of N repeated copies
 // e.g., [0] * 3 -> [0, 0, 0]. Parsed via multiplicativeExpr and handled
 // by the runtime when the left operand is an array (or right operand).
+//
+// Array addition: arr + [10] appends elements, creating a new array.
+// e.g., arr + [10, 20] -> new array with arr's elements followed by 10, 20.
+// Also via compound assignment: arr += [10] is equivalent to arr = arr + [10].
+// Parsed via additiveExpr and handled by the runtime when operands are arrays.
 arrayLiteral
     : LBRACKET (expression (COMMA expression)*)? RBRACKET
     ;

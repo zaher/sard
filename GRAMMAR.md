@@ -688,6 +688,32 @@ fives = [5] * 4    // array of 4 fives: [5, 5, 5, 5]
 strs = [""] * 3    // array of 3 empty strings: ["", "", ""]
 ```
 
+#### Array Addition (Appending Elements)
+
+```
+array-addition         := expression "+" "[" (expression ("," expression)*)? "]"
+array-compound-add   := lvalue "+=" array-literal
+```
+
+Arrays can be appended to using the `+` operator or `+=` compound assignment. When an array is added to another array, the elements from the right-hand array are appended to the left-hand array, creating a new array with the combined elements.
+
+```sard
+arr = []
+arr = arr + [10]     // arr is now [10]
+arr += [20]          // arr is now [10, 20] using compound assignment
+arr = arr + [30, 40] // arr is now [10, 20, 30, 40]
+
+// Can also combine array multiplication with addition
+base = [0] * 3       // [0, 0, 0]
+extended = base + [1, 2]  // [0, 0, 0, 1, 2]
+```
+
+**Important Notes:**
+- Array addition creates a **new array** with the combined elements (Sard arrays are immutable in this operation)
+- The original array is not modified; a new array is returned
+- `+=` works as syntactic sugar for `arr = arr + [...]`
+- Both operands can be variables or array literals
+
 ### 4.9 Array Indexing
 
 ```
