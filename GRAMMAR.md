@@ -181,16 +181,22 @@ Supported escape sequences (standalone tokens):
 
 ```
 color-literal        := "#" hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit
+                       | "#" hex-digit hex-digit hex-digit
 
 hex-digit            := [0-9a-fA-F]
 ```
 
 Stored as a DWORD (4 bytes, e.g., `0x00FF5733`).
 
+The 3-digit shorthand format (like CSS) expands by doubling each digit: `#abc` → `#aabbcc`.
+
 ```sard
-#ff5733
-#000000
-#FFFFFF
+#ff5733      // 6-digit format
+#000000      // 6-digit format
+#FFFFFF      // 6-digit format
+#fff         // 3-digit shorthand → #ffffff
+#f0f         // 3-digit shorthand → #ff00ff
+#abc         // 3-digit shorthand → #aabbcc
 ```
 
 #### 2.4.7 Currency Literals
@@ -1763,16 +1769,12 @@ return-statement     := "=" expression statement-term
 
 expression-statement := expression statement-term
 
-statement-term       := ";" | newline
+statement-term       := ";" | newline | "}"
 
 (* Block with implicit statement terminator at closing brace *)
 block                := "{" block-body "}"
 
 block-body           := statement*
-                         (* Note: The closing '}' acts as an implicit statement terminator.
-                          * Statements ending with a block do not require an explicit semicolon.
-                          * The '}' terminates the statement without needing ";"
-                          *)
 
 expression           := logical_or
 
