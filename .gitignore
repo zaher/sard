@@ -83,3 +83,4 @@ modules/
 /pas/lib
 *.o
 *.ppu
+/pas/*.lps

@@ -21,7 +21,7 @@ bank_account : {
     }
     
     transfer_to : (other, amount) {
-        if (this.withdraw(amount)) {
+        if (withdraw(amount)) {
             other.deposit(amount)
             = true
         } else {

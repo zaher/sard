@@ -10,7 +10,7 @@ e = 17 mod 5  // modulo
 f = 1 + 2 * 3      // 1 + (2 * 3) = 7
 g = (1 + 2) * 3    // 9
 h = 10 - 3 - 2     // (10 - 3) - 2 = 5
-
+x = 10
 // Chained comparisons
 in_range = (0 <= x) and (x < 100)
 between = (a < b) and (b < c)
@@ -24,6 +24,9 @@ not_result = not true
 sym_and = true & true
 sym_or = false | true
 sym_not = !true
+
+name: string = 10 // Yes string
+flag = 1 // Yes Integer not True
 
 // Type comparison
 is_int = (x == integer)

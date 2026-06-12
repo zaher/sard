@@ -42,6 +42,10 @@ outer : {
 
 val = outer.middle.inner.value
 
+point: {
+    x: integer = 0
+    y: integer =0
+}
 // Array of objects
 points = [
     ~point

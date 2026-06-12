@@ -6,6 +6,9 @@ result = {
     a + b           // evaluates to 15
 }
 
+x = 1
+y = 2
+
 // Block with explicit return
 value = {
     temp = x + y

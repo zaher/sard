@@ -16,9 +16,16 @@ r6 = not true          // false
 r7 = not false         // true
 
 // Mixed with symbol operators
+a = 1
+b = 2
+c = 3
+d = 4
+
 c1 = (a and b) or (c and d)
 c2 = (a & b) | (c & d)    // equivalent
 
+x = 10
+is_error = true
 // Named operators in complex expressions
 valid = (x >= 0) and (x < 100) and (not is_error)
 
