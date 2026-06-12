@@ -357,6 +357,8 @@ begin
       Frac := Frac + Advance;
       Inc(FracLen);
     end;
+    if not AtEnd and (Peek in ['0'..'9']) then
+      Error('Currency literal has more than 6 fractional digits');
   end;
   if Digits = '' then IntPart := 0 else IntPart := StrToInt64(Digits);
   if Frac = '' then FracPart := 0
@@ -469,10 +471,19 @@ procedure TSardLexer.ReadIdentifier(ALine, ACol: Integer);
 var
   Text, Lower: string;
   KwType: TSardTokenType;
+  Ch: Char;
 begin
   Text := '';
-  while not AtEnd and (Peek in ['a'..'z', 'A'..'Z', '0'..'9', '_']) do
-    Text := Text + Advance;
+  while not AtEnd do
+  begin
+    Ch := Peek;
+    if Ch in ['a'..'z', 'A'..'Z', '0'..'9', '_'] then
+      Text := Text + Advance
+    else if Ord(Ch) > 127 then
+      Text := Text + Advance
+    else
+      Break;
+  end;
   Lower := LowerCase(Text);
   KwType := FindKeywordType(Lower);
   if KwType <> tokIdentifier then
@@ -631,7 +642,10 @@ begin
       end;
       'a'..'z', 'A'..'Z', '_': ReadIdentifier(SL, SC);
     else
-      Error(Format('Unexpected character: %s', [QuotedStr(Ch)]));
+      if Ord(Ch) > 127 then
+        ReadIdentifier(SL, SC)
+      else
+        Error(Format('Unexpected character: %s', [QuotedStr(Ch)]));
     end;
   end;
 

@@ -37,6 +37,7 @@ type
     function ExecCompoundAssign(Node: PSardNode; Scope: PSardObject): PSardObject;
     function ExecReturn(Node: PSardNode; Scope: PSardObject): PSardObject;
     function ExecBlockNode(Node: PSardNode; ParentScope: PSardObject): PSardObject;
+    procedure ExecBlockIntoObject(Node: PSardNode; ParentScope: PSardObject; TargetObj: PSardObject);
     function EvalNode(Node: PSardNode; Scope: PSardObject): PSardObject;
     function BinaryOp(Left: PSardObject; const Op: string; Right: PSardObject; Scope: PSardObject): PSardObject;
     function UnaryOp(const Op: string; Operand: PSardObject): PSardObject;
@@ -256,7 +257,11 @@ begin
     ntExpressionStmt:
     begin
       if Node^.ChildCount > 0 then
-        Result := EvalNode(Node^.Children[0], Scope)
+      begin
+        Result := EvalNode(Node^.Children[0], Scope);
+        if (Node^.Children[0]^.NodeType = ntIdentifier) and (Result <> nil) and Result^.IsCallable then
+          Result := CallObject(Result, nil, [], Scope);
+      end
       else
         Result := SardNull;
     end;
@@ -281,7 +286,6 @@ var
   TypeObj: TSardObjType;
   Val: PSardObject;
   Coerced: PSardObject;
-  BlockScope: PSardObject;
   I: Integer;
 begin
   Name := Node^.StrValue;
@@ -377,20 +381,15 @@ begin
   end
   else if FirstChild^.NodeType = ntBlockExpr then
   begin
-    BlockScope := SardObjectNew;
-    BlockScope^.ScopeParent := Scope;
-    BlockScope^.ObjType := objObject;
-    for I := 0 to FirstChild^.ChildCount - 1 do
-    begin
-      try
-        ExecStatement(FirstChild^.Children[I], BlockScope);
-      except
-        on EReturnSignal do
-          ;
-      end;
-    end;
-    ObjSetMember(Scope, Name, BlockScope);
-    Result := BlockScope;
+    Obj := SardCallable;
+    Obj^.IsCallable := True;
+    Obj^.StrValue := '';
+    Obj^.Params.Clear;
+    Obj^.Body := FirstChild;
+    Obj^.ScopeParent := Scope;
+    ExecBlockIntoObject(FirstChild, Scope, Obj);
+    ObjSetMember(Scope, Name, Obj);
+    Result := Obj;
     Exit;
   end
   else
@@ -408,6 +407,8 @@ var
 begin
   Target := Node^.Children[0];
   Value := EvalNode(Node^.Children[1], Scope);
+  if Value^.ObjType = objArray then
+    Value := DeepCopy(Value);
   Result := AssignTo(Target, Value, Scope);
 end;
 
@@ -442,6 +443,7 @@ function TSardInterpreter.ExecReturn(Node: PSardNode; Scope: PSardObject): PSard
 var
   Val: PSardObject;
 begin
+  Result := nil;
   Val := EvalNode(Node^.Children[0], Scope);
   raise EReturnSignal.Create(Val);
 end;
@@ -488,6 +490,38 @@ begin
   else
     Result := Result_;
   FreeSardObject(BlockScope);
+end;
+
+procedure TSardInterpreter.ExecBlockIntoObject(Node: PSardNode; ParentScope: PSardObject; TargetObj: PSardObject);
+var
+  BlockScope: PSardObject;
+  I: Integer;
+  Child: PSardNode;
+  DeclName: string;
+  DeclVal: PSardObject;
+begin
+  BlockScope := SardObjectNew;
+  BlockScope^.ScopeParent := ParentScope;
+  for I := 0 to Node^.ChildCount - 1 do
+  begin
+    Child := Node^.Children[I];
+    try
+      ExecStatement(Child, BlockScope);
+    except
+      on E: EReturnSignal do
+        Break;
+      on EBreakSignal do
+        Break;
+    end;
+    if Child^.NodeType = ntDeclaration then
+    begin
+      DeclName := Child^.StrValue;
+      DeclVal := ObjLookup(BlockScope, DeclName);
+      if DeclVal <> nil then
+        ObjSetMember(TargetObj, DeclName, DeclVal);
+    end;
+  end;
+  // BlockScope is kept alive via TargetObj's members (callables reference it)
 end;
 
 function NumVal(Obj: PSardObject): Double;
@@ -747,10 +781,12 @@ begin
     ntPostfixPercent:
     begin
       Left := EvalNode(Node^.Children[0], Scope);
-      if Left^.ObjType in [objInteger, objNumber] then
-        Result := SardNumber(Left^.FloatValue / 100.0)
-      else if Left^.ObjType = objInteger then
+      if Left^.ObjType = objInteger then
         Result := SardNumber(Double(Left^.IntValue) / 100.0)
+      else if Left^.ObjType = objNumber then
+        Result := SardNumber(Left^.FloatValue / 100.0)
+      else if Left^.ObjType = objCurrency then
+        Result := SardNumber(Left^.IntValue / 100000000.0)
       else
         raise ESardRuntimeError.Create('% operator requires numeric operand');
     end;
@@ -934,7 +970,7 @@ begin
     else if (Left^.ObjType = objInteger) and (Right^.ObjType = objInteger) then
       Result := SardInteger(Left^.IntValue + Right^.IntValue)
     else
-      Result := SardNumber(Double(Left^.IntValue) + Double(Right^.IntValue));
+      Result := SardNumber(NumVal(Left) + NumVal(Right));
   end
   else if Op = '-' then
   begin
@@ -951,7 +987,7 @@ begin
     else if (Left^.ObjType = objInteger) and (Right^.ObjType = objInteger) then
       Result := SardInteger(Left^.IntValue - Right^.IntValue)
     else
-      Result := SardNumber(Double(Left^.IntValue) - Double(Right^.IntValue));
+      Result := SardNumber(NumVal(Left) - NumVal(Right));
   end
   else if Op = '*' then
   begin
@@ -1017,29 +1053,27 @@ begin
     else if (Left^.ObjType = objInteger) and (Right^.ObjType = objInteger) then
       Result := SardInteger(Left^.IntValue * Right^.IntValue)
     else
-      Result := SardNumber(Double(Left^.IntValue) * Double(Right^.IntValue));
+      Result := SardNumber(NumVal(Left) * NumVal(Right));
   end
   else if Op = '/' then
   begin
-    if (Right^.ObjType = objInteger) and (Right^.IntValue = 0) then
-      raise ESardRuntimeError.Create('Division by zero')
-    else if (Right^.ObjType = objNumber) and (Right^.FloatValue = 0.0) then
+    if NumVal(Right) = 0.0 then
       raise ESardRuntimeError.Create('Division by zero');
     if (Left^.ObjType = objInteger) and (Right^.ObjType = objInteger) then
       Result := SardInteger(Left^.IntValue div Right^.IntValue)
     else
-      Result := SardNumber(Double(Left^.IntValue) / Double(Right^.IntValue));
+      Result := SardNumber(NumVal(Left) / NumVal(Right));
   end
   else if Op = '^' then
-    Result := SardNumber(Power(Double(Left^.IntValue), Double(Right^.IntValue)))
+    Result := SardNumber(Power(NumVal(Left), NumVal(Right)))
   else if Op = 'mod' then
   begin
-    if (Right^.ObjType = objInteger) and (Right^.IntValue = 0) then
+    if NumVal(Right) = 0.0 then
       raise ESardRuntimeError.Create('Modulo by zero');
     if (Left^.ObjType = objInteger) and (Right^.ObjType = objInteger) then
       Result := SardInteger(Left^.IntValue mod Right^.IntValue)
     else
-      Result := SardNumber(Frac(Double(Left^.IntValue) / Double(Right^.IntValue)) * Double(Right^.IntValue));
+      Result := SardNumber(Frac(NumVal(Left) / NumVal(Right)) * NumVal(Right));
   end
   else if Op = '=' then
     Result := SardBoolean(ValuesEqual(Left, Right))
@@ -1258,6 +1292,7 @@ function TSardInterpreter.GetArgValues(ArgsNode: PSardNode; Scope: PSardObject):
 var
   I: Integer;
 begin
+  Result := nil;
   SetLength(Result, 0);
   if ArgsNode = nil then Exit;
   for I := 0 to ArgsNode^.ChildCount - 1 do

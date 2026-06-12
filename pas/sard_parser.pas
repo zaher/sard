@@ -194,7 +194,7 @@ var
   NameTok: PSardToken;
   Node: PSardNode;
   HasParams, HasBlock: Boolean;
-  TypeNode, ParamNode, BlockNode, ExprNode: PSardNode;
+  TypeNode: PSardNode;
 begin
   NameTok := Advance;
   Expect(tokColon);
@@ -287,7 +287,7 @@ end;
 
 function TSardParser.TryParseAssignment: PSardNode;
 var
-  Saved, SavedPos: Integer;
+  SavedPos: Integer;
   LV, Expr: PSardNode;
   OpTok: PSardToken;
   Node: PSardNode;
@@ -455,7 +455,7 @@ end;
 
 function TSardParser.ParseComparison: PSardNode;
 var
-  Left, Right: PSardNode;
+  Left: PSardNode;
   Ops: array of PSardToken;
   Operands: array of PSardNode;
   Node: PSardNode;
@@ -555,40 +555,57 @@ end;
 
 function TSardParser.ParsePower: PSardNode;
 var
-  Left, Right: PSardNode;
+  Left, Node: PSardNode;
   OpTok: PSardToken;
-  Node: PSardNode;
+  Operands: array of PSardNode;
+  Ops: array of PSardToken;
+  I: Integer;
 begin
-  Left := ParseUnary;
-  if Current^.TokenType = tokCaret then
+  Result := nil;
+  SetLength(Operands, 0);
+  SetLength(Ops, 0);
+  repeat
+    Left := ParseUnary;
+    SetLength(Operands, Length(Operands) + 1);
+    Operands[Length(Operands) - 1] := Left;
+    if Current^.TokenType = tokCaret then
+    begin
+      SetLength(Ops, Length(Ops) + 1);
+      Ops[Length(Ops) - 1] := Advance;
+    end
+    else
+      Break;
+  until False;
+
+  Result := Operands[Length(Operands) - 1];
+  for I := Length(Operands) - 2 downto 0 do
   begin
-    OpTok := Advance;
-    Right := ParsePower;
+    OpTok := Ops[I];
     Node := CreateNode(ntBinaryOp, '^', OpTok^.Line, OpTok^.Column);
-    AddChild(Node, Left);
-    AddChild(Node, Right);
+    AddChild(Node, Operands[I]);
+    AddChild(Node, Result);
     Result := Node;
-    Exit;
   end;
-  Result := Left;
 end;
 
 function TSardParser.ParseUnary: PSardNode;
 var
   Tok: PSardToken;
-  LVal, Operand: PSardNode;
+  LVal: PSardNode;
   Node: PSardNode;
+  OpStack: array of PSardToken;
+  I: Integer;
 begin
+  SetLength(OpStack, 0);
   Tok := Current;
-  if Tok^.TokenType in UnaryOps then
+  while Tok^.TokenType in UnaryOps do
   begin
+    SetLength(OpStack, Length(OpStack) + 1);
+    OpStack[Length(OpStack) - 1] := Tok;
     Advance;
-    Operand := ParseUnary;
-    Node := CreateNode(ntUnaryOp, Tok^.Value, Tok^.Line, Tok^.Column);
-    AddChild(Node, Operand);
-    Result := Node;
-    Exit;
+    Tok := Current;
   end;
+
   if Tok^.TokenType = tokInc then
   begin
     Advance;
@@ -596,18 +613,24 @@ begin
     Node := CreateNode(ntPrefixInc, '', Tok^.Line, Tok^.Column);
     AddChild(Node, LVal);
     Result := Node;
-    Exit;
-  end;
-  if Tok^.TokenType = tokDec then
+  end
+  else if Tok^.TokenType = tokDec then
   begin
     Advance;
     LVal := ParseLValueExpr;
     Node := CreateNode(ntPrefixDec, '', Tok^.Line, Tok^.Column);
     AddChild(Node, LVal);
     Result := Node;
-    Exit;
+  end
+  else
+    Result := ParsePostfix;
+
+  for I := Length(OpStack) - 1 downto 0 do
+  begin
+    Node := CreateNode(ntUnaryOp, OpStack[I]^.Value, OpStack[I]^.Line, OpStack[I]^.Column);
+    AddChild(Node, Result);
+    Result := Node;
   end;
-  Result := ParsePostfix;
 end;
 
 function TSardParser.ParseLValueExpr: PSardNode;

@@ -78,6 +78,9 @@ procedure FreeNode(Node: PSardNode);
 
 implementation
 
+uses
+  SysUtils;
+
 function CreateNode(AType: TSardNodeType; const AValue: string;
   ALine: Integer; ACol: Integer): PSardNode;
 begin
@@ -118,6 +121,8 @@ end;
 
 procedure AddChild(Parent, Child: PSardNode);
 begin
+  if Child = nil then
+    raise Exception.Create('AddChild called with nil child');
   if Parent^.ChildCount >= Length(Parent^.Children) then
     SetLength(Parent^.Children, Parent^.ChildCount * 2 + 4);
   Parent^.Children[Parent^.ChildCount] := Child;

@@ -390,6 +390,7 @@ function ObjToString(Obj: PSardObject): string;
 var
   I: Integer;
   S: string;
+  Whole, Frac: Int64;
 begin
   case Obj^.ObjType of
     objNull: Result := 'null';
@@ -405,10 +406,13 @@ begin
     objColor: Result := '#' + IntToHex(Obj^.IntValue, 6);
     objCurrency:
     begin
-      S := Format('%.6f', [Obj^.IntValue / 1000000.0]);
+      Whole := Obj^.IntValue div 1000000;
+      Frac := Obj^.IntValue mod 1000000;
+      if Frac < 0 then Frac := -Frac;
+      S := IntToStr(Whole) + '.' + Format('%.6d', [Frac]);
       while (Length(S) > 0) and (S[Length(S)] = '0') do
         Delete(S, Length(S), 1);
-      while (Length(S) > 0) and (S[Length(S)] = '.') do
+      if (Length(S) > 0) and (S[Length(S)] = '.') then
         Delete(S, Length(S), 1);
       Result := '$' + S;
     end;
