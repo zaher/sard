@@ -1,0 +1,5 @@
+// Member Access
+foo : {
+    x: integer = 1
+}
+print(foo.x)
