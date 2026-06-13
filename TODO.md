@@ -1,4 +1,4 @@
-* Ignore _ in numbers
+--* Ignore _ in numbers
 * Date type `0t20261019`
 * length `len(a)` or `len(s)`
 * for,in `for(x, a){...}`

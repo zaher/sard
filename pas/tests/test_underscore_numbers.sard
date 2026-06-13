@@ -1,0 +1,26 @@
+// Integer with underscore separators
+a = 1_000_000
+print(a)
+
+// Number/float with underscore separators
+b = 3.14_15_92
+print(b)
+
+// Hex with underscore separators
+c = 0xDE_AD_BE_EF
+print(c)
+
+// Color with underscore separators
+d = #FF_57_33
+print(d)
+
+// Currency with underscore separators
+e = $1_000.99
+print(e)
+
+// Mixed small examples
+print(1_2_3)
+print(0.00_01)
+print(0xFF_FF)
+print(#a_b_c)
+print($0.00_00_01)

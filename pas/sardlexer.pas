@@ -183,49 +183,54 @@ var
   Start: Integer;
 begin
   Start := FPos;
-  while IsDigit(Peek) do Advance;
-  if (Peek = '.') and IsDigit(PeekAt(1)) then
+  while IsDigit(Peek) or (Peek = '_') do Advance;
+  if (Peek = '.') and (IsDigit(PeekAt(1)) or (PeekAt(1) = '_')) then
   begin
     Advance;
-    while IsDigit(Peek) do Advance;
+    while IsDigit(Peek) or (Peek = '_') do Advance;
   end;
   Result := Copy(FSource, Start, FPos - Start);
+  Result := StringReplace(Result, '_', '', [rfReplaceAll]);
 end;
 
 function TLexer.ReadHex: string;
 var
   Start: Integer;
-  C: Char;
 begin
   Advance; { '0' }
   Advance; { 'x' }
   Start := FPos;
-  while IsDigit(Peek) or ((Peek >= 'a') and (Peek <= 'f')) or ((Peek >= 'A') and (Peek <= 'F')) do
+  while IsDigit(Peek) or ((Peek >= 'a') and (Peek <= 'f')) or ((Peek >= 'A') and (Peek <= 'F')) or (Peek = '_') do
     Advance;
   Result := Copy(FSource, Start, FPos - Start);
+  Result := StringReplace(Result, '_', '', [rfReplaceAll]);
+  if Result = '' then
+    raise ESardError.CreateFmt('Invalid hex literal at line %d col %d', [FLine, FCol]);
 end;
 
 function TLexer.ReadColor: string;
 var
   Start: Integer;
   Len: Integer;
-  C: Char;
   R, G, B: string;
+  S: string;
 begin
   Advance; { '#' }
   Start := FPos;
-  while IsDigit(Peek) or ((Peek >= 'a') and (Peek <= 'f')) or ((Peek >= 'A') and (Peek <= 'F')) do
+  while IsDigit(Peek) or ((Peek >= 'a') and (Peek <= 'f')) or ((Peek >= 'A') and (Peek <= 'F')) or (Peek = '_') do
     Advance;
-  Len := FPos - Start;
+  S := Copy(FSource, Start, FPos - Start);
+  S := StringReplace(S, '_', '', [rfReplaceAll]);
+  Len := Length(S);
   if Len = 3 then
   begin
-    R := FSource[Start] + FSource[Start];
-    G := FSource[Start+1] + FSource[Start+1];
-    B := FSource[Start+2] + FSource[Start+2];
+    R := S[1] + S[1];
+    G := S[2] + S[2];
+    B := S[3] + S[3];
     Result := R + G + B;
   end
   else if Len = 6 then
-    Result := Copy(FSource, Start, 6)
+    Result := S
   else
     raise ESardError.CreateFmt('Invalid color literal length %d at line %d col %d', [Len, FLine, FCol]);
 end;
@@ -241,22 +246,24 @@ var
 begin
   Advance; { '$' }
   Start := FPos;
-  while IsDigit(Peek) do Advance;
+  while IsDigit(Peek) or (Peek = '_') do Advance;
   HasDot := False;
   FracCount := 0;
   if Peek = '.' then
   begin
     HasDot := True;
     Advance;
-    while IsDigit(Peek) do
+    while IsDigit(Peek) or (Peek = '_') do
     begin
-      Inc(FracCount);
+      if IsDigit(Peek) then
+        Inc(FracCount);
       Advance;
     end;
     if FracCount > 6 then
       raise ESardError.CreateFmt('Currency literal has too many fractional digits at line %d col %d', [FLine, FCol]);
   end;
   S := Copy(FSource, Start, FPos - Start);
+  S := StringReplace(S, '_', '', [rfReplaceAll]);
   { Normalize to 6 fractional digits for parser }
   if HasDot then
   begin

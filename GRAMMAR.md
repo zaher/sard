@@ -79,41 +79,67 @@ multi-line-comment   := "/*" <any characters>* "*/"
 
 ### 2.4 Tokens
 
+**Digit Separators:** Numeric literals (integer, number, hexadecimal, color, and currency) may contain underscore (`_`) characters between digits. These underscores are ignored by the lexer and serve only as visual separators, as in modern languages such as Python, Java, Rust, and C#.
+
+```sard
+one_million = 1_000_000
+pi = 3.14_15_92
+mask = 0xFF_FF_00_00
+red = #FF_00_00
+price = $1_000.00
+```
+
 #### 2.4.1 Integer Literals
 
 ```
-integer-literal      := [0-9]+
+integer-literal      := digit ("_"? digit)*
+
+digit                := [0-9]
 ```
+
+Underscores (`_`) may be used as digit separators between digits to improve readability. They are ignored by the lexer and do not affect the value.
 
 ```sard
 0
 42
 999999
+1_000_000
+1_000_000_000
 ```
 
 #### 2.4.2 Number Literals
 
 ```
-number-literal      := [0-9]+ "." [0-9]+
+number-literal      := digit ("_"? digit)* "." digit ("_"? digit)*
 ```
+
+Underscores may appear between digits in both the whole and fractional parts.
 
 ```sard
 3.14
 0.001
 123.456
+1_000.000_001
+3.14_15_92
 ```
 
 #### 2.4.3 Hexadecimal Literals
 
 ```
-hex-literal          := "0x" [0-9a-fA-F]+
+hex-literal          := "0x" hex-digit ("_"? hex-digit)*
+
+hex-digit            := [0-9a-fA-F]
 ```
+
+Underscores may appear between hex digits.
 
 ```sard
 0x0
 0xff
 0xDEADBEEF
 0x1a2b3c
+0xDE_AD_BE_EF
+0xFF_FF_00_00
 ```
 
 #### 2.4.4 String Literals
@@ -180,8 +206,8 @@ Supported escape sequences (standalone tokens):
 #### 2.4.6 Color Literals
 
 ```
-color-literal        := "#" hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit
-                       | "#" hex-digit hex-digit hex-digit
+color-literal        := "#" hex-digit ("_"? hex-digit){5}
+                       | "#" hex-digit ("_"? hex-digit){2}
 
 hex-digit            := [0-9a-fA-F]
 ```
@@ -190,6 +216,8 @@ Stored as a DWORD (4 bytes, e.g., `0x00FF5733`).
 
 The 3-digit shorthand format (like CSS) expands by doubling each digit: `#abc` → `#aabbcc`.
 
+Underscores may appear between hex digits.
+
 ```sard
 #ff5733      // 6-digit format
 #000000      // 6-digit format
@@ -197,26 +225,31 @@ The 3-digit shorthand format (like CSS) expands by doubling each digit: `#abc` �
 #fff         // 3-digit shorthand → #ffffff
 #f0f         // 3-digit shorthand → #ff00ff
 #abc         // 3-digit shorthand → #aabbcc
+#ff_57_33    // 6-digit format with separators
+#f_f_f       // 3-digit shorthand with separators → #ffffff
 ```
 
 #### 2.4.7 Currency Literals
 
 ```
-currency-literal     := "$" [0-9]+ ("." fractional-digits)?
+currency-literal     := "$" digit ("_"? digit)* ("." fractional-digits)?
 
-fractional-digits    := [0-9] | [0-9] [0-9] | [0-9] [0-9] [0-9]
-                        | [0-9] [0-9] [0-9] [0-9]
-                        | [0-9] [0-9] [0-9] [0-9] [0-9]
-                        | [0-9] [0-9] [0-9] [0-9] [0-9] [0-9]
+fractional-digits    := digit ("_"? digit){0,5}
+
+digit                := [0-9]
 ```
 
 Currency literals represent fixed-point decimal values with 6 fractional digits, stored internally as a signed 64-bit integer (similar to Pascal's `Currency` type or `DECIMAL(16, 6)`). The `$` prefix denotes the currency type. Values are stored as integer number of units × 10^6 (1,000,000 = 1.0).
 
+Underscores may appear between digits in both the whole and fractional parts.
+
 ```sard
-x = $100           // 100.000000
-price = $99.99      // 99.990000
-tax = $12.3456      // 12.345600
-fraction = $0.000001 // 0.000001 (smallest unit)
+x = $100                // 100.000000
+price = $99.99          // 99.990000
+tax = $12.3456          // 12.345600
+fraction = $0.000001    // 0.000001 (smallest unit)
+salary = $1_000_000     // 1000000.000000
+micro = $0.000_001      // 0.000001
 ```
 
 **Precision:** Currency values support up to 6 decimal places. The lexer rejects literals with more than 6 fractional digits. Operations on currency values maintain precision by using 64-bit integer arithmetic internally.
