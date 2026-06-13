@@ -197,7 +197,7 @@ var
 begin
   Lexer := TSardLexer.Create(Source, SourceName);
   try
-    Parser := TSardParser.Create(Lexer.GetTokens, Lexer.GetTokenCount);
+    Parser := TSardParser.Create(Lexer.GetTokens);
     try
       AST := Parser.Parse;
       try

@@ -29,15 +29,18 @@ type
 
   TSardTokenSet = set of TSardTokenType;
 
-  PSardToken = ^TSardToken;
-  TSardToken = record
+  TSardToken = class
+  public
     TokenType: TSardTokenType;
     Value: string;
     IntValue: Int64;
     FloatValue: Double;
     Line: Integer;
     Column: Integer;
+    constructor Create(AType: TSardTokenType; const AValue: string; AInt: Int64; AFloat: Double; ALine, ACol: Integer);
   end;
+
+  TSardTokenArray = array of TSardToken;
 
   TSardLexer = class
   private
@@ -72,7 +75,8 @@ type
     procedure Tokenize;
   public
     constructor Create(const ASource: string; const ASourceName: string = '<script>');
-    function GetTokens: PSardToken;
+    destructor Destroy; override;
+    function GetTokens: TSardTokenArray;
     function GetTokenCount: Integer;
   end;
 
@@ -132,6 +136,27 @@ begin
   Tokenize;
 end;
 
+destructor TSardLexer.Destroy;
+var
+  I: Integer;
+begin
+  for I := 0 to FTokenCount - 1 do
+    FTokens[I].Free;
+  SetLength(FTokens, 0);
+  inherited Destroy;
+end;
+
+constructor TSardToken.Create(AType: TSardTokenType; const AValue: string; AInt: Int64; AFloat: Double; ALine, ACol: Integer);
+begin
+  inherited Create;
+  TokenType := AType;
+  Value := AValue;
+  IntValue := AInt;
+  FloatValue := AFloat;
+  Line := ALine;
+  Column := ACol;
+end;
+
 procedure TSardLexer.Error(const AMsg: string);
 begin
   raise ESardLexerError.Create(
@@ -177,25 +202,24 @@ procedure TSardLexer.AddToken(AType: TSardTokenType; const AValue: string; ALine
 begin
   if FTokenCount >= Length(FTokens) then
     SetLength(FTokens, Length(FTokens) * 2);
-  FTokens[FTokenCount].TokenType := AType;
-  FTokens[FTokenCount].Value := AValue;
-  FTokens[FTokenCount].IntValue := 0;
-  FTokens[FTokenCount].FloatValue := 0.0;
-  FTokens[FTokenCount].Line := ALine;
-  FTokens[FTokenCount].Column := ACol;
+  FTokens[FTokenCount] := TSardToken.Create(AType, AValue, 0, 0.0, ALine, ACol);
   Inc(FTokenCount);
 end;
 
 procedure TSardLexer.AddTokenInt(AType: TSardTokenType; const AValue: string; AInt: Int64; ALine, ACol: Integer);
 begin
-  AddToken(AType, AValue, ALine, ACol);
-  FTokens[FTokenCount - 1].IntValue := AInt;
+  if FTokenCount >= Length(FTokens) then
+    SetLength(FTokens, Length(FTokens) * 2);
+  FTokens[FTokenCount] := TSardToken.Create(AType, AValue, AInt, 0.0, ALine, ACol);
+  Inc(FTokenCount);
 end;
 
 procedure TSardLexer.AddTokenFloat(AType: TSardTokenType; const AValue: string; AFloat: Double; ALine, ACol: Integer);
 begin
-  AddToken(AType, AValue, ALine, ACol);
-  FTokens[FTokenCount - 1].FloatValue := AFloat;
+  if FTokenCount >= Length(FTokens) then
+    SetLength(FTokens, Length(FTokens) * 2);
+  FTokens[FTokenCount] := TSardToken.Create(AType, AValue, 0, AFloat, ALine, ACol);
+  Inc(FTokenCount);
 end;
 
 procedure TSardLexer.MaybeInsertSemi(ALine, ACol: Integer);
@@ -501,7 +525,7 @@ end;
 
 procedure TSardLexer.ConcatStringEscapes;
 var
-  Result: array of TSardToken;
+  Result: TSardTokenArray;
   RIdx, I: Integer;
   Parts: string;
   StartLine, StartCol: Integer;
@@ -519,14 +543,10 @@ begin
       while (I < FTokenCount) and (FTokens[I].TokenType in [tokString, tokEscapeSeq]) do
       begin
         Parts := Parts + FTokens[I].Value;
+        FTokens[I].Free;
         Inc(I);
       end;
-      Result[RIdx].TokenType := tokString;
-      Result[RIdx].Value := Parts;
-      Result[RIdx].IntValue := 0;
-      Result[RIdx].FloatValue := 0.0;
-      Result[RIdx].Line := StartLine;
-      Result[RIdx].Column := StartCol;
+      Result[RIdx] := TSardToken.Create(tokString, Parts, 0, 0.0, StartLine, StartCol);
       Inc(RIdx);
     end
     else
@@ -653,9 +673,9 @@ begin
   AddToken(tokEOF, '', FLine, FColumn);
 end;
 
-function TSardLexer.GetTokens: PSardToken;
+function TSardLexer.GetTokens: TSardTokenArray;
 begin
-  Result := @FTokens[0];
+  Result := FTokens;
 end;
 
 function TSardLexer.GetTokenCount: Integer;

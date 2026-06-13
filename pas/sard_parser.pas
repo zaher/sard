@@ -10,14 +10,14 @@ uses
 type
   TSardParser = class
   private
-    FTokens: PSardToken;
+    FTokens: TSardTokenArray;
     FCount: Integer;
     FPos: Integer;
-    function Current: PSardToken;
-    function Peek(AOffset: Integer = 0): PSardToken;
-    function Advance: PSardToken;
-    function Expect(AType: TSardTokenType): PSardToken;
-    function Match(AType: TSardTokenType): PSardToken;
+    function Current: TSardToken;
+    function Peek(AOffset: Integer = 0): TSardToken;
+    function Advance: TSardToken;
+    function Expect(AType: TSardTokenType): TSardToken;
+    function Match(AType: TSardTokenType): TSardToken;
     function AtEnd: Boolean;
     function ParseProgram: PSardNode;
     function ParseStatement: PSardNode;
@@ -46,7 +46,7 @@ type
     function ParsePrimary: PSardNode;
     function ParseArrayLiteral: PSardNode;
   public
-    constructor Create(ATokens: PSardToken; ACount: Integer);
+    constructor Create(const ATokens: TSardTokenArray);
     function Parse: PSardNode;
   end;
 
@@ -59,56 +59,56 @@ const
   MultiplicativeOps: TSardTokenSet = [tokStar, tokSlash, tokMod];
   UnaryOps: TSardTokenSet = [tokMinus, tokPlus, tokBang, tokNot];
 
-constructor TSardParser.Create(ATokens: PSardToken; ACount: Integer);
+constructor TSardParser.Create(const ATokens: TSardTokenArray);
 begin
   inherited Create;
   FTokens := ATokens;
-  FCount := ACount;
+  FCount := Length(ATokens);
   FPos := 0;
 end;
 
-function TSardParser.Current: PSardToken;
+function TSardParser.Current: TSardToken;
 begin
   if FPos < FCount then
-    Result := @FTokens[FPos]
+    Result := FTokens[FPos]
   else
-    Result := @FTokens[FCount - 1];
+    Result := FTokens[FCount - 1];
 end;
 
-function TSardParser.Peek(AOffset: Integer): PSardToken;
+function TSardParser.Peek(AOffset: Integer): TSardToken;
 var
   Idx: Integer;
 begin
   Idx := FPos + AOffset;
   if Idx < FCount then
-    Result := @FTokens[Idx]
+    Result := FTokens[Idx]
   else
-    Result := @FTokens[FCount - 1];
+    Result := FTokens[FCount - 1];
 end;
 
-function TSardParser.Advance: PSardToken;
+function TSardParser.Advance: TSardToken;
 begin
   Result := Current;
   if FPos < FCount then
     Inc(FPos);
 end;
 
-function TSardParser.Expect(AType: TSardTokenType): PSardToken;
+function TSardParser.Expect(AType: TSardTokenType): TSardToken;
 begin
   Result := Current;
-  if Result^.TokenType <> AType then
+  if Result.TokenType <> AType then
     raise ESardParseError.Create(
       Format('Expected %s, got %s (%s) at line %d',
-        [TokenTypeToString(AType), TokenTypeToString(Result^.TokenType),
-         Result^.Value, Result^.Line]),
-      Result^.Line, Result^.Column);
+        [TokenTypeToString(AType), TokenTypeToString(Result.TokenType),
+         Result.Value, Result.Line]),
+      Result.Line, Result.Column);
   Inc(FPos);
-  Result := @FTokens[FPos - 1];
+  Result := FTokens[FPos - 1];
 end;
 
-function TSardParser.Match(AType: TSardTokenType): PSardToken;
+function TSardParser.Match(AType: TSardTokenType): TSardToken;
 begin
-  if Current^.TokenType = AType then
+  if Current.TokenType = AType then
     Result := Advance
   else
     Result := nil;
@@ -116,7 +116,7 @@ end;
 
 function TSardParser.AtEnd: Boolean;
 begin
-  Result := Current^.TokenType = tokEOF;
+  Result := Current.TokenType = tokEOF;
 end;
 
 function TSardParser.Parse: PSardNode;
@@ -139,26 +139,26 @@ end;
 
 function TSardParser.ParseStatement: PSardNode;
 var
-  Tok: PSardToken;
+  Tok: TSardToken;
 begin
   Tok := Current;
-  if Tok^.TokenType = tokSemi then
+  if Tok.TokenType = tokSemi then
   begin
     Advance;
-    Result := CreateNode(ntEmptyStmt, '', Tok^.Line, Tok^.Column);
+    Result := CreateNode(ntEmptyStmt, '', Tok.Line, Tok.Column);
     Exit;
   end;
-  if Tok^.TokenType = tokLBrace then
+  if Tok.TokenType = tokLBrace then
   begin
     Result := ParseBlockStmt;
     Exit;
   end;
-  if Tok^.TokenType = tokEq then
+  if Tok.TokenType = tokEq then
   begin
     Result := ParseReturnStmt;
     Exit;
   end;
-  if Tok^.TokenType = tokIdentifier then
+  if Tok.TokenType = tokIdentifier then
   begin
     Result := ParseIdentifierStmt;
     Exit;
@@ -172,14 +172,14 @@ var
   DeclResult, AssignResult: PSardNode;
 begin
   Saved := FPos;
-  if Peek(1)^.TokenType = tokColon then
+  if Peek(1).TokenType = tokColon then
   begin
     DeclResult := TryParseDeclaration;
     if DeclResult <> nil then
       Exit(DeclResult);
   end;
   FPos := Saved;
-  if Current^.TokenType = tokIdentifier then
+  if Current.TokenType = tokIdentifier then
   begin
     AssignResult := TryParseAssignment;
     if AssignResult <> nil then
@@ -191,24 +191,24 @@ end;
 
 function TSardParser.TryParseDeclaration: PSardNode;
 var
-  NameTok: PSardToken;
+  NameTok: TSardToken;
   Node: PSardNode;
   HasParams, HasBlock: Boolean;
   TypeNode: PSardNode;
 begin
   NameTok := Advance;
   Expect(tokColon);
-  Node := CreateNode(ntDeclaration, NameTok^.Value, NameTok^.Line, NameTok^.Column);
+  Node := CreateNode(ntDeclaration, NameTok.Value, NameTok.Line, NameTok.Column);
   HasParams := False;
   HasBlock := False;
 
-  if Current^.TokenType = tokLParen then
+  if Current.TokenType = tokLParen then
   begin
     AddChild(Node, ParseParamList);
     HasParams := True;
   end;
 
-  if Current^.TokenType = tokLBrace then
+  if Current.TokenType = tokLBrace then
   begin
     AddChild(Node, ParseBlockExpr);
     HasBlock := True;
@@ -216,21 +216,21 @@ begin
 
   if (not HasParams) and (not HasBlock) then
   begin
-    if Current^.TokenType = tokIdentifier then
+    if Current.TokenType = tokIdentifier then
     begin
       TypeNode := ParseType;
       AddChild(Node, TypeNode);
-      if Current^.TokenType = tokLParen then
+      if Current.TokenType = tokLParen then
       begin
         AddChild(Node, ParseParamList);
         HasParams := True;
       end;
-      if Current^.TokenType = tokLBrace then
+      if Current.TokenType = tokLBrace then
       begin
         AddChild(Node, ParseBlockExpr);
         HasBlock := True;
       end
-      else if Current^.TokenType = tokEq then
+      else if Current.TokenType = tokEq then
       begin
         Advance;
         AddChild(Node, ParseExpression);
@@ -251,15 +251,15 @@ end;
 function TSardParser.ParseType: PSardNode;
 var
   Node: PSardNode;
-  IdTok: PSardToken;
+  IdTok: TSardToken;
 begin
   IdTok := Expect(tokIdentifier);
-  Node := CreateNode(ntTypeAnnotation, IdTok^.Value, IdTok^.Line, IdTok^.Column);
-  while Current^.TokenType = tokDot do
+  Node := CreateNode(ntTypeAnnotation, IdTok.Value, IdTok.Line, IdTok.Column);
+  while Current.TokenType = tokDot do
   begin
     Advance;
     IdTok := Expect(tokIdentifier);
-    AddChild(Node, CreateNode(ntIdentifier, IdTok^.Value, IdTok^.Line, IdTok^.Column));
+    AddChild(Node, CreateNode(ntIdentifier, IdTok.Value, IdTok.Line, IdTok.Column));
   end;
   Result := Node;
 end;
@@ -267,18 +267,18 @@ end;
 function TSardParser.ParseParamList: PSardNode;
 var
   Node: PSardNode;
-  IdTok: PSardToken;
+  IdTok: TSardToken;
 begin
   Expect(tokLParen);
   Node := CreateNode(ntParamList);
-  if Current^.TokenType <> tokRParen then
+  if Current.TokenType <> tokRParen then
   begin
     IdTok := Expect(tokIdentifier);
-    AddChild(Node, CreateNode(ntIdentifier, IdTok^.Value, IdTok^.Line, IdTok^.Column));
+    AddChild(Node, CreateNode(ntIdentifier, IdTok.Value, IdTok.Line, IdTok.Column));
     while Match(tokComma) <> nil do
     begin
       IdTok := Expect(tokIdentifier);
-      AddChild(Node, CreateNode(ntIdentifier, IdTok^.Value, IdTok^.Line, IdTok^.Column));
+      AddChild(Node, CreateNode(ntIdentifier, IdTok.Value, IdTok.Line, IdTok.Column));
     end;
   end;
   Expect(tokRParen);
@@ -289,7 +289,7 @@ function TSardParser.TryParseAssignment: PSardNode;
 var
   SavedPos: Integer;
   LV, Expr: PSardNode;
-  OpTok: PSardToken;
+  OpTok: TSardToken;
   Node: PSardNode;
 begin
   SavedPos := FPos;
@@ -300,17 +300,17 @@ begin
     Result := nil;
     Exit;
   end;
-  if Current^.TokenType in AssignmentOps then
+  if Current.TokenType in AssignmentOps then
   begin
     OpTok := Advance;
     Expr := ParseExpression;
     Match(tokSemi);
-    if OpTok^.TokenType = tokEq then
-      Node := CreateNode(ntAssignment, '=', OpTok^.Line, OpTok^.Column)
-    else if OpTok^.TokenType = tokPlusAssign then
-      Node := CreateNode(ntCompoundAssignment, '+=', OpTok^.Line, OpTok^.Column)
+    if OpTok.TokenType = tokEq then
+      Node := CreateNode(ntAssignment, '=', OpTok.Line, OpTok.Column)
+    else if OpTok.TokenType = tokPlusAssign then
+      Node := CreateNode(ntCompoundAssignment, '+=', OpTok.Line, OpTok.Column)
     else
-      Node := CreateNode(ntCompoundAssignment, '-=', OpTok^.Line, OpTok^.Column);
+      Node := CreateNode(ntCompoundAssignment, '-=', OpTok.Line, OpTok.Column);
     AddChild(Node, LV);
     AddChild(Node, Expr);
     Result := Node;
@@ -322,28 +322,28 @@ end;
 
 function TSardParser.ParseLValue: PSardNode;
 var
-  NameTok, MemberTok: PSardToken;
+  NameTok, MemberTok: TSardToken;
   Node, Access: PSardNode;
   Idx: PSardNode;
 begin
-  if Current^.TokenType <> tokIdentifier then
+  if Current.TokenType <> tokIdentifier then
   begin
     Result := nil;
     Exit;
   end;
   NameTok := Advance;
-  Node := CreateNode(ntIdentifier, NameTok^.Value, NameTok^.Line, NameTok^.Column);
+  Node := CreateNode(ntIdentifier, NameTok.Value, NameTok.Line, NameTok.Column);
   while True do
   begin
-    if Current^.TokenType = tokDot then
+    if Current.TokenType = tokDot then
     begin
       Advance;
       MemberTok := Expect(tokIdentifier);
-      Access := CreateNode(ntMemberAccess, MemberTok^.Value, MemberTok^.Line, MemberTok^.Column);
+      Access := CreateNode(ntMemberAccess, MemberTok.Value, MemberTok.Line, MemberTok.Column);
       AddChild(Access, Node);
       Node := Access;
     end
-    else if Current^.TokenType = tokLBracket then
+    else if Current.TokenType = tokLBracket then
     begin
       Advance;
       Idx := ParseExpression;
@@ -361,11 +361,11 @@ end;
 
 function TSardParser.ParseReturnStmt: PSardNode;
 var
-  Tok: PSardToken;
+  Tok: TSardToken;
   Node: PSardNode;
 begin
   Tok := Advance;
-  Node := CreateNode(ntReturnStmt, '=', Tok^.Line, Tok^.Column);
+  Node := CreateNode(ntReturnStmt, '=', Tok.Line, Tok.Column);
   AddChild(Node, ParseExpression);
   Match(tokSemi);
   Result := Node;
@@ -395,12 +395,12 @@ end;
 
 function TSardParser.ParseBlockExpr: PSardNode;
 var
-  LBrace: PSardToken;
+  LBrace: TSardToken;
   Node, Stmt: PSardNode;
 begin
   LBrace := Expect(tokLBrace);
-  Node := CreateNode(ntBlockExpr, '', LBrace^.Line, LBrace^.Column);
-  while (Current^.TokenType <> tokRBrace) and (not AtEnd) do
+  Node := CreateNode(ntBlockExpr, '', LBrace.Line, LBrace.Column);
+  while (Current.TokenType <> tokRBrace) and (not AtEnd) do
   begin
     Stmt := ParseStatement;
     if Stmt <> nil then
@@ -418,15 +418,15 @@ end;
 function TSardParser.ParseOr: PSardNode;
 var
   Left, Right: PSardNode;
-  OpTok: PSardToken;
+  OpTok: TSardToken;
   Node: PSardNode;
 begin
   Left := ParseAnd;
-  while Current^.TokenType in [tokBar, tokOr] do
+  while Current.TokenType in [tokBar, tokOr] do
   begin
     OpTok := Advance;
     Right := ParseAnd;
-    Node := CreateNode(ntBinaryOp, OpTok^.Value, OpTok^.Line, OpTok^.Column);
+    Node := CreateNode(ntBinaryOp, OpTok.Value, OpTok.Line, OpTok.Column);
     AddChild(Node, Left);
     AddChild(Node, Right);
     Left := Node;
@@ -437,15 +437,15 @@ end;
 function TSardParser.ParseAnd: PSardNode;
 var
   Left, Right: PSardNode;
-  OpTok: PSardToken;
+  OpTok: TSardToken;
   Node: PSardNode;
 begin
   Left := ParseComparison;
-  while Current^.TokenType in [tokAmpersand, tokAnd] do
+  while Current.TokenType in [tokAmpersand, tokAnd] do
   begin
     OpTok := Advance;
     Right := ParseComparison;
-    Node := CreateNode(ntBinaryOp, OpTok^.Value, OpTok^.Line, OpTok^.Column);
+    Node := CreateNode(ntBinaryOp, OpTok.Value, OpTok.Line, OpTok.Column);
     AddChild(Node, Left);
     AddChild(Node, Right);
     Left := Node;
@@ -456,7 +456,7 @@ end;
 function TSardParser.ParseComparison: PSardNode;
 var
   Left: PSardNode;
-  Ops: array of PSardToken;
+  Ops: array of TSardToken;
   Operands: array of PSardNode;
   Node: PSardNode;
   I: Integer;
@@ -464,7 +464,7 @@ begin
   Left := ParseTypeCheck;
   SetLength(Ops, 0);
   SetLength(Operands, 0);
-  while Current^.TokenType in ComparisonOps do
+  while Current.TokenType in ComparisonOps do
   begin
     SetLength(Ops, Length(Ops) + 1);
     Ops[Length(Ops) - 1] := Advance;
@@ -478,15 +478,15 @@ begin
   end;
   if Length(Ops) = 1 then
   begin
-    Node := CreateNode(ntBinaryOp, Ops[0]^.Value, Ops[0]^.Line, Ops[0]^.Column);
+    Node := CreateNode(ntBinaryOp, Ops[0].Value, Ops[0].Line, Ops[0].Column);
     AddChild(Node, Left);
     AddChild(Node, Operands[0]);
     Result := Node;
     Exit;
   end;
-  Node := CreateNode(ntComparisonChain, '', Ops[0]^.Line, Ops[0]^.Column);
+  Node := CreateNode(ntComparisonChain, '', Ops[0].Line, Ops[0].Column);
   for I := 0 to Length(Ops) - 1 do
-    AddChild(Node, CreateNode(ntIdentifier, Ops[I]^.Value, Ops[I]^.Line, Ops[I]^.Column));
+    AddChild(Node, CreateNode(ntIdentifier, Ops[I].Value, Ops[I].Line, Ops[I].Column));
   AddChild(Node, Left);
   for I := 0 to Length(Operands) - 1 do
     AddChild(Node, Operands[I]);
@@ -500,7 +500,7 @@ var
   LLine, LCol: Integer;
 begin
   Left := ParseAdditive;
-  if Current^.TokenType = tokTypeEq then
+  if Current.TokenType = tokTypeEq then
   begin
     LLine := Left^.Line;
     LCol := Left^.Column;
@@ -518,15 +518,15 @@ end;
 function TSardParser.ParseAdditive: PSardNode;
 var
   Left, Right: PSardNode;
-  OpTok: PSardToken;
+  OpTok: TSardToken;
   Node: PSardNode;
 begin
   Left := ParseMultiplicative;
-  while Current^.TokenType in AdditiveOps do
+  while Current.TokenType in AdditiveOps do
   begin
     OpTok := Advance;
     Right := ParseMultiplicative;
-    Node := CreateNode(ntBinaryOp, OpTok^.Value, OpTok^.Line, OpTok^.Column);
+    Node := CreateNode(ntBinaryOp, OpTok.Value, OpTok.Line, OpTok.Column);
     AddChild(Node, Left);
     AddChild(Node, Right);
     Left := Node;
@@ -537,15 +537,15 @@ end;
 function TSardParser.ParseMultiplicative: PSardNode;
 var
   Left, Right: PSardNode;
-  OpTok: PSardToken;
+  OpTok: TSardToken;
   Node: PSardNode;
 begin
   Left := ParsePower;
-  while Current^.TokenType in MultiplicativeOps do
+  while Current.TokenType in MultiplicativeOps do
   begin
     OpTok := Advance;
     Right := ParsePower;
-    Node := CreateNode(ntBinaryOp, OpTok^.Value, OpTok^.Line, OpTok^.Column);
+    Node := CreateNode(ntBinaryOp, OpTok.Value, OpTok.Line, OpTok.Column);
     AddChild(Node, Left);
     AddChild(Node, Right);
     Left := Node;
@@ -556,9 +556,9 @@ end;
 function TSardParser.ParsePower: PSardNode;
 var
   Left, Node: PSardNode;
-  OpTok: PSardToken;
+  OpTok: TSardToken;
   Operands: array of PSardNode;
-  Ops: array of PSardToken;
+  Ops: array of TSardToken;
   I: Integer;
 begin
   Result := nil;
@@ -568,7 +568,7 @@ begin
     Left := ParseUnary;
     SetLength(Operands, Length(Operands) + 1);
     Operands[Length(Operands) - 1] := Left;
-    if Current^.TokenType = tokCaret then
+    if Current.TokenType = tokCaret then
     begin
       SetLength(Ops, Length(Ops) + 1);
       Ops[Length(Ops) - 1] := Advance;
@@ -581,7 +581,7 @@ begin
   for I := Length(Operands) - 2 downto 0 do
   begin
     OpTok := Ops[I];
-    Node := CreateNode(ntBinaryOp, '^', OpTok^.Line, OpTok^.Column);
+    Node := CreateNode(ntBinaryOp, '^', OpTok.Line, OpTok.Column);
     AddChild(Node, Operands[I]);
     AddChild(Node, Result);
     Result := Node;
@@ -590,15 +590,15 @@ end;
 
 function TSardParser.ParseUnary: PSardNode;
 var
-  Tok: PSardToken;
+  Tok: TSardToken;
   LVal: PSardNode;
   Node: PSardNode;
-  OpStack: array of PSardToken;
+  OpStack: array of TSardToken;
   I: Integer;
 begin
   SetLength(OpStack, 0);
   Tok := Current;
-  while Tok^.TokenType in UnaryOps do
+  while Tok.TokenType in UnaryOps do
   begin
     SetLength(OpStack, Length(OpStack) + 1);
     OpStack[Length(OpStack) - 1] := Tok;
@@ -606,19 +606,19 @@ begin
     Tok := Current;
   end;
 
-  if Tok^.TokenType = tokInc then
+  if Tok.TokenType = tokInc then
   begin
     Advance;
     LVal := ParseLValueExpr;
-    Node := CreateNode(ntPrefixInc, '', Tok^.Line, Tok^.Column);
+    Node := CreateNode(ntPrefixInc, '', Tok.Line, Tok.Column);
     AddChild(Node, LVal);
     Result := Node;
   end
-  else if Tok^.TokenType = tokDec then
+  else if Tok.TokenType = tokDec then
   begin
     Advance;
     LVal := ParseLValueExpr;
-    Node := CreateNode(ntPrefixDec, '', Tok^.Line, Tok^.Column);
+    Node := CreateNode(ntPrefixDec, '', Tok.Line, Tok.Column);
     AddChild(Node, LVal);
     Result := Node;
   end
@@ -627,7 +627,7 @@ begin
 
   for I := Length(OpStack) - 1 downto 0 do
   begin
-    Node := CreateNode(ntUnaryOp, OpStack[I]^.Value, OpStack[I]^.Line, OpStack[I]^.Column);
+    Node := CreateNode(ntUnaryOp, OpStack[I].Value, OpStack[I].Line, OpStack[I].Column);
     AddChild(Node, Result);
     Result := Node;
   end;
@@ -635,29 +635,29 @@ end;
 
 function TSardParser.ParseLValueExpr: PSardNode;
 var
-  Tok, MemberTok: PSardToken;
+  Tok, MemberTok: TSardToken;
   Node, Access: PSardNode;
   Idx: PSardNode;
 begin
   Tok := Current;
-  if Tok^.TokenType <> tokIdentifier then
+  if Tok.TokenType <> tokIdentifier then
     raise ESardParseError.Create(
       Format('Expected identifier for lvalue, got %s at line %d',
-        [TokenTypeToString(Tok^.TokenType), Tok^.Line]),
-      Tok^.Line, Tok^.Column);
+        [TokenTypeToString(Tok.TokenType), Tok.Line]),
+      Tok.Line, Tok.Column);
   Advance;
-  Node := CreateNode(ntIdentifier, Tok^.Value, Tok^.Line, Tok^.Column);
+  Node := CreateNode(ntIdentifier, Tok.Value, Tok.Line, Tok.Column);
   while True do
   begin
-    if Current^.TokenType = tokDot then
+    if Current.TokenType = tokDot then
     begin
       Advance;
       MemberTok := Expect(tokIdentifier);
-      Access := CreateNode(ntMemberAccess, MemberTok^.Value, MemberTok^.Line, MemberTok^.Column);
+      Access := CreateNode(ntMemberAccess, MemberTok.Value, MemberTok.Line, MemberTok.Column);
       AddChild(Access, Node);
       Node := Access;
     end
-    else if Current^.TokenType = tokLBracket then
+    else if Current.TokenType = tokLBracket then
     begin
       Advance;
       Idx := ParseExpression;
@@ -676,7 +676,7 @@ end;
 function TSardParser.ParsePostfix: PSardNode;
 var
   Node, Access, Call, Named: PSardNode;
-  Tok, MemberTok: PSardToken;
+  Tok, MemberTok: TSardToken;
   Block: PSardNode;
   Args: PSardNode;
 begin
@@ -684,75 +684,75 @@ begin
   while True do
   begin
     Tok := Current;
-    if Tok^.TokenType = tokDot then
+    if Tok.TokenType = tokDot then
     begin
       Advance;
       MemberTok := Expect(tokIdentifier);
-      Access := CreateNode(ntMemberAccess, MemberTok^.Value, MemberTok^.Line, MemberTok^.Column);
+      Access := CreateNode(ntMemberAccess, MemberTok.Value, MemberTok.Line, MemberTok.Column);
       AddChild(Access, Node);
       Node := Access;
     end
-    else if Tok^.TokenType = tokLBracket then
+    else if Tok.TokenType = tokLBracket then
     begin
       Advance;
       Args := ParseExpression;
       Expect(tokRBracket);
-      Access := CreateNode(ntIndexAccess, '', Tok^.Line, Tok^.Column);
+      Access := CreateNode(ntIndexAccess, '', Tok.Line, Tok.Column);
       AddChild(Access, Node);
       AddChild(Access, Args);
       Node := Access;
     end
-    else if Tok^.TokenType = tokLParen then
+    else if Tok.TokenType = tokLParen then
     begin
-      Call := CreateNode(ntCall, '', Tok^.Line, Tok^.Column);
+      Call := CreateNode(ntCall, '', Tok.Line, Tok.Column);
       AddChild(Call, Node);
       AddChild(Call, ParseArgList);
-      if Current^.TokenType = tokLBrace then
+      if Current.TokenType = tokLBrace then
         AddChild(Call, ParseBlockExpr);
       Node := Call;
     end
-    else if Tok^.TokenType = tokIdentifier then
+    else if Tok.TokenType = tokIdentifier then
     begin
-      if (Peek(1)^.TokenType in [tokLParen, tokLBrace]) then
+      if (Peek(1).TokenType in [tokLParen, tokLBrace]) then
       begin
         Advance;
-        Named := CreateNode(ntNamedBlock, Tok^.Value, Tok^.Line, Tok^.Column);
+        Named := CreateNode(ntNamedBlock, Tok.Value, Tok.Line, Tok.Column);
         AddChild(Named, Node);
-        if Current^.TokenType = tokLParen then
+        if Current.TokenType = tokLParen then
           AddChild(Named, ParseArgList);
-        if Current^.TokenType = tokLBrace then
+        if Current.TokenType = tokLBrace then
           AddChild(Named, ParseBlockExpr);
         Node := Named;
       end
       else
         Break;
     end
-    else if Tok^.TokenType = tokLBrace then
+    else if Tok.TokenType = tokLBrace then
     begin
       Block := ParseBlockExpr;
-      Call := CreateNode(ntCall, '', Tok^.Line, Tok^.Column);
+      Call := CreateNode(ntCall, '', Tok.Line, Tok.Column);
       AddChild(Call, Node);
       AddChild(Call, Block);
       Node := Call;
     end
-    else if Tok^.TokenType = tokPercent then
+    else if Tok.TokenType = tokPercent then
     begin
       Advance;
-      Access := CreateNode(ntPostfixPercent, '', Tok^.Line, Tok^.Column);
+      Access := CreateNode(ntPostfixPercent, '', Tok.Line, Tok.Column);
       AddChild(Access, Node);
       Node := Access;
     end
-    else if Tok^.TokenType = tokInc then
+    else if Tok.TokenType = tokInc then
     begin
       Advance;
-      Access := CreateNode(ntPostfixInc, '', Tok^.Line, Tok^.Column);
+      Access := CreateNode(ntPostfixInc, '', Tok.Line, Tok.Column);
       AddChild(Access, Node);
       Node := Access;
     end
-    else if Tok^.TokenType = tokDec then
+    else if Tok.TokenType = tokDec then
     begin
       Advance;
-      Access := CreateNode(ntPostfixDec, '', Tok^.Line, Tok^.Column);
+      Access := CreateNode(ntPostfixDec, '', Tok.Line, Tok.Column);
       AddChild(Access, Node);
       Node := Access;
     end
@@ -768,7 +768,7 @@ var
 begin
   Expect(tokLParen);
   Node := CreateNode(ntArgList);
-  if Current^.TokenType <> tokRParen then
+  if Current.TokenType <> tokRParen then
   begin
     AddChild(Node, ParseExpression);
     while Match(tokComma) <> nil do
@@ -780,85 +780,85 @@ end;
 
 function TSardParser.ParsePrimary: PSardNode;
 var
-  Tok, IdTok, NameTok: PSardToken;
+  Tok, IdTok, NameTok: TSardToken;
   Node, Qualified, Expr: PSardNode;
 begin
   Tok := Current;
 
-  if Tok^.TokenType = tokInteger then
+  if Tok.TokenType = tokInteger then
   begin
     Advance;
-    Result := CreateNodeInt(ntLiteral, Tok^.IntValue, Tok^.Line, Tok^.Column);
-    Result^.StrValue := Tok^.Value;
+    Result := CreateNodeInt(ntLiteral, Tok.IntValue, Tok.Line, Tok.Column);
+    Result^.StrValue := Tok.Value;
     Result^.LiteralKind := LIT_INTEGER;
     Exit;
   end;
-  if Tok^.TokenType = tokNumber then
+  if Tok.TokenType = tokNumber then
   begin
     Advance;
-    Result := CreateNodeFloat(ntLiteral, Tok^.FloatValue, Tok^.Line, Tok^.Column);
-    Result^.StrValue := Tok^.Value;
+    Result := CreateNodeFloat(ntLiteral, Tok.FloatValue, Tok.Line, Tok.Column);
+    Result^.StrValue := Tok.Value;
     Result^.LiteralKind := LIT_NUMBER;
     Exit;
   end;
-  if Tok^.TokenType = tokHex then
+  if Tok.TokenType = tokHex then
   begin
     Advance;
-    Result := CreateNodeInt(ntLiteral, Tok^.IntValue, Tok^.Line, Tok^.Column);
-    Result^.StrValue := Tok^.Value;
+    Result := CreateNodeInt(ntLiteral, Tok.IntValue, Tok.Line, Tok.Column);
+    Result^.StrValue := Tok.Value;
     Result^.LiteralKind := LIT_HEX;
     Exit;
   end;
-  if Tok^.TokenType = tokString then
+  if Tok.TokenType = tokString then
   begin
     Advance;
-    Result := CreateNode(ntLiteral, Tok^.Value, Tok^.Line, Tok^.Column);
+    Result := CreateNode(ntLiteral, Tok.Value, Tok.Line, Tok.Column);
     Result^.LiteralKind := LIT_STRING;
     Exit;
   end;
-  if Tok^.TokenType = tokColor then
+  if Tok.TokenType = tokColor then
   begin
     Advance;
-    Result := CreateNodeInt(ntLiteral, Tok^.IntValue, Tok^.Line, Tok^.Column);
-    Result^.StrValue := Tok^.Value;
+    Result := CreateNodeInt(ntLiteral, Tok.IntValue, Tok.Line, Tok.Column);
+    Result^.StrValue := Tok.Value;
     Result^.LiteralKind := LIT_COLOR;
     Exit;
   end;
-  if Tok^.TokenType = tokCurrency then
+  if Tok.TokenType = tokCurrency then
   begin
     Advance;
-    Result := CreateNodeInt(ntLiteral, Tok^.IntValue, Tok^.Line, Tok^.Column);
-    Result^.StrValue := Tok^.Value;
+    Result := CreateNodeInt(ntLiteral, Tok.IntValue, Tok.Line, Tok.Column);
+    Result^.StrValue := Tok.Value;
     Result^.LiteralKind := LIT_CURRENCY;
     Exit;
   end;
-  if Tok^.TokenType = tokTrue then
+  if Tok.TokenType = tokTrue then
   begin
     Advance;
-    Result := CreateNodeBool(ntLiteral, True, Tok^.Line, Tok^.Column);
+    Result := CreateNodeBool(ntLiteral, True, Tok.Line, Tok.Column);
     Result^.LiteralKind := LIT_BOOLEAN;
     Exit;
   end;
-  if Tok^.TokenType = tokFalse then
+  if Tok.TokenType = tokFalse then
   begin
     Advance;
-    Result := CreateNodeBool(ntLiteral, False, Tok^.Line, Tok^.Column);
+    Result := CreateNodeBool(ntLiteral, False, Tok.Line, Tok.Column);
     Result^.LiteralKind := LIT_BOOLEAN;
     Exit;
   end;
-  if Tok^.TokenType = tokIdentifier then
+  if Tok.TokenType = tokIdentifier then
   begin
     Advance;
-    Node := CreateNode(ntIdentifier, Tok^.Value, Tok^.Line, Tok^.Column);
-    if Current^.TokenType = tokDot then
+    Node := CreateNode(ntIdentifier, Tok.Value, Tok.Line, Tok.Column);
+    if Current.TokenType = tokDot then
     begin
-      Qualified := CreateNode(ntQualifiedId, '', Tok^.Line, Tok^.Column);
+      Qualified := CreateNode(ntQualifiedId, '', Tok.Line, Tok.Column);
       AddChild(Qualified, Node);
-      while Current^.TokenType = tokDot do
+      while Current.TokenType = tokDot do
       begin
         Advance;
         IdTok := Expect(tokIdentifier);
-        AddChild(Qualified, CreateNode(ntIdentifier, IdTok^.Value, IdTok^.Line, IdTok^.Column));
+        AddChild(Qualified, CreateNode(ntIdentifier, IdTok.Value, IdTok.Line, IdTok.Column));
       end;
       Result := Qualified;
       Exit;
@@ -866,7 +866,7 @@ begin
     Result := Node;
     Exit;
   end;
-  if Tok^.TokenType = tokLParen then
+  if Tok.TokenType = tokLParen then
   begin
     Advance;
     Expr := ParseExpression;
@@ -874,35 +874,35 @@ begin
     Result := Expr;
     Exit;
   end;
-  if Tok^.TokenType = tokLBrace then
+  if Tok.TokenType = tokLBrace then
   begin
     Result := ParseBlockExpr;
     Exit;
   end;
-  if Tok^.TokenType = tokTilde then
+  if Tok.TokenType = tokTilde then
   begin
     Advance;
     NameTok := Expect(tokIdentifier);
-    Result := CreateNode(ntObjectNew, NameTok^.Value, Tok^.Line, Tok^.Column);
+    Result := CreateNode(ntObjectNew, NameTok.Value, Tok.Line, Tok.Column);
     Exit;
   end;
-  if Tok^.TokenType = tokTildeTilde then
+  if Tok.TokenType = tokTildeTilde then
   begin
     Advance;
     NameTok := Expect(tokIdentifier);
-    Result := CreateNode(ntObjectCopy, NameTok^.Value, Tok^.Line, Tok^.Column);
+    Result := CreateNode(ntObjectCopy, NameTok.Value, Tok.Line, Tok.Column);
     Exit;
   end;
-  if Tok^.TokenType = tokAt then
+  if Tok.TokenType = tokAt then
   begin
     Advance;
     Expr := ParseExpression;
-    Node := CreateNode(ntReference, '', Tok^.Line, Tok^.Column);
+    Node := CreateNode(ntReference, '', Tok.Line, Tok.Column);
     AddChild(Node, Expr);
     Result := Node;
     Exit;
   end;
-  if Tok^.TokenType = tokLBracket then
+  if Tok.TokenType = tokLBracket then
   begin
     Result := ParseArrayLiteral;
     Exit;
@@ -910,19 +910,19 @@ begin
 
   raise ESardParseError.Create(
     Format('Unexpected token %s (%s) at line %d',
-      [TokenTypeToString(Tok^.TokenType), Tok^.Value, Tok^.Line]),
-    Tok^.Line, Tok^.Column);
+      [TokenTypeToString(Tok.TokenType), Tok.Value, Tok.Line]),
+    Tok.Line, Tok.Column);
 end;
 
 function TSardParser.ParseArrayLiteral: PSardNode;
 var
-  Tok: PSardToken;
+  Tok: TSardToken;
   Node: PSardNode;
 begin
   Tok := Expect(tokLBracket);
-  Node := CreateNode(ntArrayLiteral, '', Tok^.Line, Tok^.Column);
+  Node := CreateNode(ntArrayLiteral, '', Tok.Line, Tok.Column);
   Match(tokSemi);
-  if Current^.TokenType <> tokRBracket then
+  if Current.TokenType <> tokRBracket then
   begin
     AddChild(Node, ParseExpression);
     while True do
@@ -933,7 +933,7 @@ begin
         Match(tokSemi);
         AddChild(Node, ParseExpression);
       end
-      else if Current^.TokenType <> tokRBracket then
+      else if Current.TokenType <> tokRBracket then
         AddChild(Node, ParseExpression)
       else
         Break;
