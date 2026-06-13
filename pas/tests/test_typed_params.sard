@@ -1,0 +1,22 @@
+// Typed callable parameters
+
+add : (a: integer, b: integer) {
+    = a + b
+}
+
+scale : (value, factor: number) {
+    = value * factor
+}
+
+// Typed parameters with return type annotation
+divide : number (a: number, b: number) {
+    = a / b
+}
+
+result1 = add(10, 20)
+result2 = scale(100, 1.5)
+result3 = divide(10, 4)
+
+print(result1)
+print(result2)
+print(result3)

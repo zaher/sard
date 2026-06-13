@@ -364,7 +364,7 @@ count : integer = 9.9      // valid: number -> integer (9, truncated)
 flag : boolean = 1         // valid: integer -> boolean (true, non-zero = true)
 ```
 
-**Callable Objects:** Type annotations on callable parameters and return types serve as documentation only; the runtime enforces types only on variable declarations, not on callable signatures.
+**Callable Objects:** Callable parameters may include optional type annotations (`name : type`), and callable declarations may include an optional return type before the parameter list (`name : type (params) { ... }`). By default, these annotations serve as documentation and a hook for future static analysis; the runtime enforces types on variable declarations, but does not require callable parameter or return-type checks unless the implementation chooses to enforce them. If no type annotation is provided, the parameter or return value remains dynamically typed.
 
 ### 3.2 Type Expressions
 
@@ -879,6 +879,29 @@ Introduces a new variable or callable object. The semicolon is optional at end o
 - `name : type { ... }` — declares a callable with return type and no parameters
 - `name : type (params) { ... }` — declares a callable with return type and parameters
 - `name : (params)` — declares a callable signature (parameters only, no body); serves as a forward declaration or abstract interface
+
+**Typed Parameters:**
+Each parameter in a parameter list may optionally include a type annotation. Untyped and typed parameters may be mixed in the same list.
+
+```sard
+// Untyped parameters
+add : (a, b) { = a + b }
+
+// Typed parameters
+greet : (name: string) { = "Hello, " + name }
+
+// Mixed typed and untyped
+scale : (value, factor: number) { = value * factor }
+
+// Multiple typed parameters
+plot : (x: integer, y: integer) { ... }
+
+// Typed parameters with return type
+divide : number (a: number, b: number) { = a / b }
+
+// Typed forward declaration
+compare : (a: integer, b: integer);
+```
 
 **Type Enforcement:**
 When a variable is declared with a type annotation (`name : type`), the runtime enforces strict type safety:
@@ -1794,7 +1817,9 @@ declaration          := identifier ":" type ("=" expression)? statement-term?
 
 type                 := identifier ("." identifier)*
 
-parameter-list       := "(" (identifier ("," identifier)*)? ")"
+parameter-list       := "(" (parameter ("," parameter)*)? ")"
+
+parameter            := identifier (":" type)?
 
 assignment           := lvalue "=" expression statement-term
                         | lvalue "+=" expression statement-term

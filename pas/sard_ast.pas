@@ -37,6 +37,7 @@ type
     ntPrefixDec,
     ntTypeAnnotation,
     ntParamList,
+    ntParameter,
     ntArgList
   );
 

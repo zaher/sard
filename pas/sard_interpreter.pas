@@ -278,6 +278,11 @@ begin
   end;
 end;
 
+function ParamName(ParamNode: PSardNode): string;
+begin
+  Result := ParamNode^.StrValue;
+end;
+
 function TSardInterpreter.ExecDeclaration(Node: PSardNode; Scope: PSardObject): PSardObject;
 var
   Name: string;
@@ -311,7 +316,7 @@ begin
         Obj^.StrValue := '';
         Obj^.Params.Clear;
         for I := 0 to SecondChild^.ChildCount - 1 do
-          Obj^.Params.Add(LowerCase(SecondChild^.Children[I]^.StrValue));
+          Obj^.Params.Add(LowerCase(ParamName(SecondChild^.Children[I])));
         if Node^.ChildCount > 2 then
         begin
           ThirdChild := Node^.Children[2];
@@ -365,7 +370,7 @@ begin
     Obj^.StrValue := '';
     Obj^.Params.Clear;
     for I := 0 to FirstChild^.ChildCount - 1 do
-      Obj^.Params.Add(LowerCase(FirstChild^.Children[I]^.StrValue));
+      Obj^.Params.Add(LowerCase(ParamName(FirstChild^.Children[I])));
     if Node^.ChildCount > 1 then
     begin
       SecondChild := Node^.Children[1];

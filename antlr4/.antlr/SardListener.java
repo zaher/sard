@@ -1,4 +1,4 @@
-// Generated from d:\\lab\\pascal\\sard\\antlr4\\Sard.g4 by ANTLR 4.9.2
+// Generated from Sard.g4 by ANTLR 4.9.2
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
@@ -27,15 +27,77 @@ public interface SardListener extends ParseTreeListener {
 	 */
 	void exitStatement(SardParser.StatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link SardParser#declaration}.
+	 * Enter a parse tree produced by the {@code DeclTypedInit}
+	 * labeled alternative in {@link SardParser#declaration}.
 	 * @param ctx the parse tree
 	 */
-	void enterDeclaration(SardParser.DeclarationContext ctx);
+	void enterDeclTypedInit(SardParser.DeclTypedInitContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link SardParser#declaration}.
+	 * Exit a parse tree produced by the {@code DeclTypedInit}
+	 * labeled alternative in {@link SardParser#declaration}.
 	 * @param ctx the parse tree
 	 */
-	void exitDeclaration(SardParser.DeclarationContext ctx);
+	void exitDeclTypedInit(SardParser.DeclTypedInitContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code DeclTypedCallable}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void enterDeclTypedCallable(SardParser.DeclTypedCallableContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code DeclTypedCallable}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void exitDeclTypedCallable(SardParser.DeclTypedCallableContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code DeclCallableParams}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void enterDeclCallableParams(SardParser.DeclCallableParamsContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code DeclCallableParams}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void exitDeclCallableParams(SardParser.DeclCallableParamsContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code DeclCallableNoParams}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void enterDeclCallableNoParams(SardParser.DeclCallableNoParamsContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code DeclCallableNoParams}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void exitDeclCallableNoParams(SardParser.DeclCallableNoParamsContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code DeclForwardParams}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void enterDeclForwardParams(SardParser.DeclForwardParamsContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code DeclForwardParams}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void exitDeclForwardParams(SardParser.DeclForwardParamsContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code DeclTyped}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void enterDeclTyped(SardParser.DeclTypedContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code DeclTyped}
+	 * labeled alternative in {@link SardParser#declaration}.
+	 * @param ctx the parse tree
+	 */
+	void exitDeclTyped(SardParser.DeclTypedContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link SardParser#type}.
 	 * @param ctx the parse tree
@@ -57,6 +119,16 @@ public interface SardListener extends ParseTreeListener {
 	 */
 	void exitParameterList(SardParser.ParameterListContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link SardParser#parameter}.
+	 * @param ctx the parse tree
+	 */
+	void enterParameter(SardParser.ParameterContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link SardParser#parameter}.
+	 * @param ctx the parse tree
+	 */
+	void exitParameter(SardParser.ParameterContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link SardParser#assignment}.
 	 * @param ctx the parse tree
 	 */
@@ -76,6 +148,16 @@ public interface SardListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitLvalue(SardParser.LvalueContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link SardParser#lvalueSuffix}.
+	 * @param ctx the parse tree
+	 */
+	void enterLvalueSuffix(SardParser.LvalueSuffixContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link SardParser#lvalueSuffix}.
+	 * @param ctx the parse tree
+	 */
+	void exitLvalueSuffix(SardParser.LvalueSuffixContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link SardParser#returnStatement}.
 	 * @param ctx the parse tree
@@ -137,6 +219,16 @@ public interface SardListener extends ParseTreeListener {
 	 */
 	void exitComparisonExpr(SardParser.ComparisonExprContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link SardParser#comparisonChain}.
+	 * @param ctx the parse tree
+	 */
+	void enterComparisonChain(SardParser.ComparisonChainContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link SardParser#comparisonChain}.
+	 * @param ctx the parse tree
+	 */
+	void exitComparisonChain(SardParser.ComparisonChainContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link SardParser#typeCheckExpr}.
 	 * @param ctx the parse tree
 	 */
@@ -197,15 +289,101 @@ public interface SardListener extends ParseTreeListener {
 	 */
 	void exitPostfixExpr(SardParser.PostfixExprContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link SardParser#postfixLink}.
+	 * Enter a parse tree produced by the {@code PostfixMember}
+	 * labeled alternative in {@link SardParser#postfixLink}.
 	 * @param ctx the parse tree
 	 */
-	void enterPostfixLink(SardParser.PostfixLinkContext ctx);
+	void enterPostfixMember(SardParser.PostfixMemberContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link SardParser#postfixLink}.
+	 * Exit a parse tree produced by the {@code PostfixMember}
+	 * labeled alternative in {@link SardParser#postfixLink}.
 	 * @param ctx the parse tree
 	 */
-	void exitPostfixLink(SardParser.PostfixLinkContext ctx);
+	void exitPostfixMember(SardParser.PostfixMemberContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PostfixIndex}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void enterPostfixIndex(SardParser.PostfixIndexContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PostfixIndex}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void exitPostfixIndex(SardParser.PostfixIndexContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PostfixCall}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void enterPostfixCall(SardParser.PostfixCallContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PostfixCall}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void exitPostfixCall(SardParser.PostfixCallContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PostfixNamedBlock}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void enterPostfixNamedBlock(SardParser.PostfixNamedBlockContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PostfixNamedBlock}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void exitPostfixNamedBlock(SardParser.PostfixNamedBlockContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PostfixBlock}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void enterPostfixBlock(SardParser.PostfixBlockContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PostfixBlock}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void exitPostfixBlock(SardParser.PostfixBlockContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PostfixPercent}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void enterPostfixPercent(SardParser.PostfixPercentContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PostfixPercent}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void exitPostfixPercent(SardParser.PostfixPercentContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PostfixInc}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void enterPostfixInc(SardParser.PostfixIncContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PostfixInc}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void exitPostfixInc(SardParser.PostfixIncContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PostfixDec}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void enterPostfixDec(SardParser.PostfixDecContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PostfixDec}
+	 * labeled alternative in {@link SardParser#postfixLink}.
+	 * @param ctx the parse tree
+	 */
+	void exitPostfixDec(SardParser.PostfixDecContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link SardParser#argumentList}.
 	 * @param ctx the parse tree
@@ -227,15 +405,125 @@ public interface SardListener extends ParseTreeListener {
 	 */
 	void exitNamedBlock(SardParser.NamedBlockContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link SardParser#primaryExpr}.
+	 * Enter a parse tree produced by the {@code PrimaryLiteral}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
 	 * @param ctx the parse tree
 	 */
-	void enterPrimaryExpr(SardParser.PrimaryExprContext ctx);
+	void enterPrimaryLiteral(SardParser.PrimaryLiteralContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link SardParser#primaryExpr}.
+	 * Exit a parse tree produced by the {@code PrimaryLiteral}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
 	 * @param ctx the parse tree
 	 */
-	void exitPrimaryExpr(SardParser.PrimaryExprContext ctx);
+	void exitPrimaryLiteral(SardParser.PrimaryLiteralContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryTrue}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryTrue(SardParser.PrimaryTrueContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryTrue}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryTrue(SardParser.PrimaryTrueContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryFalse}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryFalse(SardParser.PrimaryFalseContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryFalse}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryFalse(SardParser.PrimaryFalseContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code QualifiedOrSimpleId}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterQualifiedOrSimpleId(SardParser.QualifiedOrSimpleIdContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code QualifiedOrSimpleId}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitQualifiedOrSimpleId(SardParser.QualifiedOrSimpleIdContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryParen}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryParen(SardParser.PrimaryParenContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryParen}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryParen(SardParser.PrimaryParenContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryBlock}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryBlock(SardParser.PrimaryBlockContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryBlock}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryBlock(SardParser.PrimaryBlockContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryProto}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryProto(SardParser.PrimaryProtoContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryProto}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryProto(SardParser.PrimaryProtoContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryClone}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryClone(SardParser.PrimaryCloneContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryClone}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryClone(SardParser.PrimaryCloneContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryRef}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryRef(SardParser.PrimaryRefContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryRef}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryRef(SardParser.PrimaryRefContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code PrimaryArray}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryArray(SardParser.PrimaryArrayContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code PrimaryArray}
+	 * labeled alternative in {@link SardParser#primaryExpr}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryArray(SardParser.PrimaryArrayContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link SardParser#literal}.
 	 * @param ctx the parse tree

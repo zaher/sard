@@ -1,0 +1,31 @@
+// Typed Callable Parameters
+
+// Single typed parameter
+greet : (name: string) {
+    msg = "Hello, " + name
+    = msg
+}
+
+// Multiple typed parameters
+add : (a: integer, b: integer) {
+    = a + b
+}
+
+// Mixed typed and untyped parameters
+scale : (value, factor: number) {
+    = value * factor
+}
+
+// Typed parameters with return type annotation
+divide : number (a: number, b: number) {
+    = a / b
+}
+
+// Typed forward declaration
+compare : (a: integer, b: integer);
+
+// Calls
+result1 = greet("Sard")
+result2 = add(10, 20)
+result3 = scale(100, 1.5)
+result4 = divide(10, 4)

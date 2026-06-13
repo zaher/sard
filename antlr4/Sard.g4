@@ -31,7 +31,11 @@ type
     ;
 
 parameterList
-    : LPAREN (IDENTIFIER (COMMA IDENTIFIER)*)? RPAREN
+    : LPAREN (parameter (COMMA parameter)*)? RPAREN
+    ;
+
+parameter
+    : IDENTIFIER (COLON type)?
     ;
 
 assignment
@@ -129,16 +133,16 @@ namedBlock
     ;
 
 primaryExpr
-    : literal
-    | TRUE
-    | FALSE
-    | IDENTIFIER (DOT IDENTIFIER)*            #QualifiedOrSimpleId
-    | LPAREN expression RPAREN
-    | block
-    | TILDE IDENTIFIER
-    | TILDETILDE IDENTIFIER
-    | AT expression
-    | arrayLiteral
+    : literal                                  #PrimaryLiteral
+    | TRUE                                     #PrimaryTrue
+    | FALSE                                    #PrimaryFalse
+    | IDENTIFIER (DOT IDENTIFIER)*             #QualifiedOrSimpleId
+    | LPAREN expression RPAREN                 #PrimaryParen
+    | block                                    #PrimaryBlock
+    | TILDE IDENTIFIER                         #PrimaryProto
+    | TILDETILDE IDENTIFIER                    #PrimaryClone
+    | AT expression                            #PrimaryRef
+    | arrayLiteral                             #PrimaryArray
     ;
 
 literal

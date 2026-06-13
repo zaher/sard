@@ -266,7 +266,7 @@ end;
 
 function TSardParser.ParseParamList: PSardNode;
 var
-  Node: PSardNode;
+  Node, ParamNode: PSardNode;
   IdTok: TSardToken;
 begin
   Expect(tokLParen);
@@ -274,11 +274,17 @@ begin
   if Current.TokenType <> tokRParen then
   begin
     IdTok := Expect(tokIdentifier);
-    AddChild(Node, CreateNode(ntIdentifier, IdTok.Value, IdTok.Line, IdTok.Column));
+    ParamNode := CreateNode(ntParameter, IdTok.Value, IdTok.Line, IdTok.Column);
+    if Match(tokColon) <> nil then
+      AddChild(ParamNode, ParseType);
+    AddChild(Node, ParamNode);
     while Match(tokComma) <> nil do
     begin
       IdTok := Expect(tokIdentifier);
-      AddChild(Node, CreateNode(ntIdentifier, IdTok.Value, IdTok.Line, IdTok.Column));
+      ParamNode := CreateNode(ntParameter, IdTok.Value, IdTok.Line, IdTok.Column);
+      if Match(tokColon) <> nil then
+        AddChild(ParamNode, ParseType);
+      AddChild(Node, ParamNode);
     end;
   end;
   Expect(tokRParen);
