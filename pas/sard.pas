@@ -5,6 +5,7 @@ program Sard;
 uses
   SysUtils, Classes, SardTypes, SardLexer, SardParser, SardInterp;
 
+procedure Run;
 var
   Source, FileName: string;
   Lexer: TLexer;
@@ -48,5 +49,22 @@ begin
     end;
   finally
     Lexer.Free;
+  end;
+end;
+
+begin
+  try
+    Run;
+  except
+    on E: ESardError do
+    begin
+      WriteLn(E.Message);
+      Halt(1);
+    end;
+    on E: Exception do
+    begin
+      WriteLn('Error: ', E.Message);
+      Halt(1);
+    end;
   end;
 end.
