@@ -8,6 +8,10 @@
 
 * Date type `0t20261019`
 
-* Namespace, extend
-* Inherited object
+* Namespace, extend namespace
+* Inherited object/extend
 * constructors, destructors
+
+
+* Math functions
+    Abs, Min, Max, Sin, Cos, Tan

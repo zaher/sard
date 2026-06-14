@@ -18,3 +18,10 @@ for([1, 2], x) {
     print(x)
 }
 print(x)
+
+print("for array")
+a = [1,2,3,4]
+for(a, v)
+{
+    print(v)
+}

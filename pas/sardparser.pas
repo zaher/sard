@@ -903,9 +903,33 @@ begin
           Node := NewNode(nkCall);
           Node.Left := Result;
           Node.AddChild(ParseArgumentList);
-          { optional anonymous block }
+          (* optional anonymous block - allow newline before { }
+             This lets control-flow calls like for(a, v)\n{ ... } span lines. *)
+          if FCurrent.Kind = tkNewLine then
+          begin
+            Saved := FCurrent;
+            while FCurrent.Kind = tkNewLine do Advance;
+            if FCurrent.Kind <> tkLBrace then
+            begin
+              FLookahead := FCurrent;
+              FHasLookahead := True;
+              FCurrent := Saved;
+            end;
+          end;
           if FCurrent.Kind = tkLBrace then
             Node.AddChild(ParseBlock);
+          { named blocks - allow newline before else }
+          if FCurrent.Kind = tkNewLine then
+          begin
+            Saved := FCurrent;
+            while FCurrent.Kind = tkNewLine do Advance;
+            if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+            begin
+              FLookahead := FCurrent;
+              FHasLookahead := True;
+              FCurrent := Saved;
+            end;
+          end;
           { named blocks }
           while FCurrent.Kind = tkIdentifier do
           begin
@@ -935,6 +959,18 @@ begin
           Node := NewNode(nkCall);
           Node.Left := Result;
           Node.AddChild(ParseBlock);
+          { named blocks - allow newline before else }
+          if FCurrent.Kind = tkNewLine then
+          begin
+            Saved := FCurrent;
+            while FCurrent.Kind = tkNewLine do Advance;
+            if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+            begin
+              FLookahead := FCurrent;
+              FHasLookahead := True;
+              FCurrent := Saved;
+            end;
+          end;
           Result := Node;
         end;
       tkIncrement, tkDecrement:

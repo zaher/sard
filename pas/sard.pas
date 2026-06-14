@@ -34,6 +34,7 @@ begin
     Parser := TParser.Create(Lexer);
     try
       AST := Parser.ParseProgram;
+      //DumpAST(AST, 0);
       try
         Interp := TInterpreter.Create;
         try
