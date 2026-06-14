@@ -38,7 +38,7 @@ type
     function ParseLValue: TASTNode;
     function ParseArgumentList: TASTNode;
     function ParseArrayLiteral: TASTNode;
-    procedure ParseTypedParameterList(out Names, Types: TStringArray; out RetType: string);
+    procedure ParseTypedParameterList(out Names, Types: TStringArray; out Defaults: TASTNodeArray; out RetType: string);
     function ParsePostfixChain(StartNode: TASTNode): TASTNode;
     function MakeError(const Msg: string): ESardError;
     function NewNode(AKind: TNodeKind): TASTNode;
@@ -188,6 +188,7 @@ var
   Name, TypeName: string;
   Saved: TToken;
   ParamNames, ParamTypes: TStringArray;
+  ParamDefaults: TASTNodeArray;
   RetType: string;
   HasType, HasParams: Boolean;
   IsLVal: Boolean;
@@ -255,13 +256,14 @@ begin
     { Callable with params: name : (params) ... }
     if FCurrent.Kind = tkLParen then
     begin
-      ParseTypedParameterList(ParamNames, ParamTypes, RetType);
+      ParseTypedParameterList(ParamNames, ParamTypes, ParamDefaults, RetType);
       Result := NewNode(nkDeclare);
       Result.Name := Name;
       Result.HasParamList := True;
       Result.ReturnType := RetType;
       Result.Params := ParamNames;
       Result.ParamTypes := ParamTypes;
+      Result.ParamDefaults := ParamDefaults;
       if FCurrent.Kind = tkLBrace then
         Result.AddChild(ParseBlock);
       ParseStatementTerm;
@@ -280,7 +282,7 @@ begin
       RetType := TypeName;
       if FCurrent.Kind = tkLParen then
       begin
-        ParseTypedParameterList(ParamNames, ParamTypes, RetType);
+        ParseTypedParameterList(ParamNames, ParamTypes, ParamDefaults, RetType);
         { param list consumed; RetType stays as TypeName because ParseTypedParameterList does not modify it when already set? It is out param so it will be cleared. Restore below. }
         RetType := TypeName;
       end;
@@ -290,6 +292,7 @@ begin
       Result.ReturnType := RetType;
       Result.Params := ParamNames;
       Result.ParamTypes := ParamTypes;
+      Result.ParamDefaults := ParamDefaults;
       if FCurrent.Kind = tkLBrace then
         Result.AddChild(ParseBlock);
       ParseStatementTerm;
@@ -439,14 +442,16 @@ begin
   Result := NewNode(nkStatements);
   Result.Name := 'args';
   Expect(tkLParen);
-  if FCurrent.Kind <> tkRParen then
+  while FCurrent.Kind <> tkRParen do
   begin
-    Result.AddChild(ParseExpression);
-    while FCurrent.Kind = tkComma do
-    begin
-      Advance;
+    if FCurrent.Kind = tkComma then
+      Result.AddChild(nil)
+    else
       Result.AddChild(ParseExpression);
-    end;
+    if FCurrent.Kind = tkComma then
+      Advance
+    else
+      Break;
   end;
   Expect(tkRParen);
 end;
@@ -483,48 +488,63 @@ begin
   end;
 end;
 
-procedure TParser.ParseTypedParameterList(out Names, Types: TStringArray; out RetType: string);
+procedure TParser.ParseTypedParameterList(out Names, Types: TStringArray; out Defaults: TASTNodeArray; out RetType: string);
 var
   N, T: string;
-  Count: Integer;
+  D: TASTNode;
 
-  procedure AddParam(const AName, AType: string);
+  procedure AddParam(const AName, AType: string; ADefault: TASTNode);
   var
     L: Integer;
   begin
     L := Length(Names);
     SetLength(Names, L + 1);
     SetLength(Types, L + 1);
+    SetLength(Defaults, L + 1);
     Names[L] := AName;
     Types[L] := AType;
+    Defaults[L] := ADefault;
   end;
 
 begin
   RetType := '';
   SetLength(Names, 0);
   SetLength(Types, 0);
+  SetLength(Defaults, 0);
   Expect(tkLParen);
   if FCurrent.Kind <> tkRParen then
   begin
     N := Expect(tkIdentifier);
     T := '';
+    D := nil;
     if FCurrent.Kind = tkColon then
     begin
       Advance;
       T := Expect(tkIdentifier);
     end;
-    AddParam(N, T);
+    if FCurrent.Kind = tkAssign then
+    begin
+      Advance;
+      D := ParseExpression;
+    end;
+    AddParam(N, T, D);
     while FCurrent.Kind = tkComma do
     begin
       Advance;
       N := Expect(tkIdentifier);
       T := '';
+      D := nil;
       if FCurrent.Kind = tkColon then
       begin
         Advance;
         T := Expect(tkIdentifier);
       end;
-      AddParam(N, T);
+      if FCurrent.Kind = tkAssign then
+      begin
+        Advance;
+        D := ParseExpression;
+      end;
+      AddParam(N, T, D);
     end;
   end;
   Expect(tkRParen);

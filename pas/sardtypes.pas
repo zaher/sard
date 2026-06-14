@@ -44,6 +44,7 @@ type
   );
 
   TASTNode = class;
+  TASTNodeArray = array of TASTNode;
 
   { AST Node }
   TASTNode = class
@@ -64,6 +65,7 @@ type
     Typ: string;
     Params: array of string;
     ParamTypes: array of string;
+    ParamDefaults: array of TASTNode;
     ReturnType: string;
     HasParamList: Boolean;
     constructor Create(AKind: TNodeKind; const AText: string; ALine, ACol: Integer);
@@ -92,6 +94,7 @@ type
     Callable: Boolean;
     Params: TStringList;
     ParamTypes: TStringList;
+    ParamDefaults: array of TASTNode;
     ReturnType: string;
     Body: TASTNode;
     DeclaredType: string;
@@ -176,6 +179,8 @@ var
 begin
   for I := 0 to High(Children) do
     Children[I].Free;
+  for I := 0 to High(ParamDefaults) do
+    ParamDefaults[I].Free;
   Left.Free;
   Right.Free;
   inherited;
@@ -216,6 +221,10 @@ begin
   SetLength(Result.ParamTypes, Length(ParamTypes));
   for I := 0 to High(ParamTypes) do
     Result.ParamTypes[I] := ParamTypes[I];
+  SetLength(Result.ParamDefaults, Length(ParamDefaults));
+  for I := 0 to High(ParamDefaults) do
+    if ParamDefaults[I] <> nil then
+      Result.ParamDefaults[I] := ParamDefaults[I].DeepClone;
   if Left <> nil then Result.Left := Left.DeepClone;
   if Right <> nil then Result.Right := Right.DeepClone;
   SetLength(Result.Children, Length(Children));
@@ -331,6 +340,8 @@ begin
   ArrayItems.Free;
   Params.Free;
   ParamTypes.Free;
+  for I := 0 to High(ParamDefaults) do
+    ParamDefaults[I].Free;
   Body.Free;
   inherited;
 end;
@@ -351,6 +362,10 @@ begin
   Result.Callable := Callable;
   Result.Params.Text := Params.Text;
   Result.ParamTypes.Text := ParamTypes.Text;
+  SetLength(Result.ParamDefaults, Length(ParamDefaults));
+  for I := 0 to High(ParamDefaults) do
+    if ParamDefaults[I] <> nil then
+      Result.ParamDefaults[I] := ParamDefaults[I].DeepClone;
     Result.ReturnType := ReturnType;
     Result.DeclaredType := DeclaredType;
     Result.BuiltinName := BuiltinName;

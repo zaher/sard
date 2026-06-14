@@ -765,7 +765,9 @@ begin
         SetLength(Args, ArgNodeList.Count);
         for I := 0 to High(ArgNodes) do
         begin
-          if (BuiltinName = 'while') and (I = 0) then
+          if ArgNodes[I] = nil then
+            Args[I] := nil
+          else if (BuiltinName = 'while') and (I = 0) then
           begin
             LazyCond := NewValue;
             LazyCond.Kind := vkLazy;
@@ -775,6 +777,15 @@ begin
           else
             Args[I] := EvalExpression(ArgNodes[I], Scope);
         end;
+
+        { Builtins cannot distinguish omitted arguments - supply null for empty slots }
+        if BuiltinName <> '' then
+          for I := 0 to High(Args) do
+            if Args[I] = nil then
+            begin
+              Args[I] := NewValue;
+              Args[I].Kind := vkNull;
+            end;
 
         if BuiltinName = 'print' then
           Result := BuiltInPrint(Scope, Args)
@@ -792,7 +803,8 @@ begin
     finally
       Callee.Release;
       for I := 0 to High(Args) do
-        Args[I].Release;
+        if Args[I] <> nil then
+          Args[I].Release;
       if Blocks <> nil then
       begin
         { Blocks is a temporary wrapper; do not free the original AST children }
@@ -975,6 +987,10 @@ begin
         Callable.Params.Add(Node.Params[I]);
       for I := 0 to High(Node.ParamTypes) do
         Callable.ParamTypes.Add(Node.ParamTypes[I]);
+      SetLength(Callable.ParamDefaults, Length(Node.ParamDefaults));
+      for I := 0 to High(Node.ParamDefaults) do
+        if Node.ParamDefaults[I] <> nil then
+          Callable.ParamDefaults[I] := Node.ParamDefaults[I].DeepClone;
       Callable.ReturnType := Node.ReturnType;
       Callable.Body := BodyNode.DeepClone;
       Callable.Parent := Scope;
@@ -1695,12 +1711,14 @@ begin
   else
     CallableScope := NewScope(Scope);
   try
-    { Bind arguments }
+    { Bind arguments; omitted arguments use the declared default or null }
     for I := 0 to Callable.Params.Count - 1 do
     begin
       ParamName := Callable.Params[I];
-      if I <= High(Args) then
+      if (I <= High(Args)) and (Args[I] <> nil) then
         ArgValue := Args[I].Clone(True)
+      else if (I <= High(Callable.ParamDefaults)) and (Callable.ParamDefaults[I] <> nil) then
+        ArgValue := EvalExpression(Callable.ParamDefaults[I], Scope)
       else
       begin
         ArgValue := NewValue;

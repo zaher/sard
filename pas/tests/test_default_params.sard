@@ -1,0 +1,22 @@
+// Default parameter values
+
+foo : (x, y = 10) {
+    = x + y
+}
+
+bar : (x = 5, y) {
+    = x * y
+}
+
+print(foo(5))
+print(foo(5, 2))
+print(bar(, 10))
+print(bar(2, 10))
+
+// Typed parameters with defaults
+greet : (name: string, suffix: string = "!") {
+    = "Hello, " + name + suffix
+}
+
+print(greet("Sard"))
+print(greet("Sard", "?"))

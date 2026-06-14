@@ -625,13 +625,15 @@ postfix-call         := argument-list block?
 postfix-final        := "%"
                         | "++" | "--"
 
-argument-list        := "(" (expression ("," expression)*)? ")"
+argument-list        := "(" (argument ("," argument)*)? ")"
+argument             := expression?
 
 named-block          := identifier argument-list? block
 ```
 
 Functions are callable objects. They can accept:
 - An argument list: `func()` or `func(a, b)`
+- An argument list with omitted arguments: `func(, b)` uses the declared default value (or `null` if none)
 - Named blocks (`identifier block`): `if (cond) { } else { }`
 
 **Postfix Chain Rules:**
@@ -913,8 +915,14 @@ Introduces a new variable or callable object. The semicolon is optional at end o
 - `name : type (params) { ... }` — declares a callable with return type and parameters
 - `name : (params)` — declares a callable signature (parameters only, no body); serves as a forward declaration or abstract interface
 
-**Typed Parameters:**
-Each parameter in a parameter list may optionally include a type annotation. Untyped and typed parameters may be mixed in the same list.
+**Parameters:**
+
+```
+parameter            := identifier (":" type)? ("=" expression)?
+parameter-list       := "(" (parameter ("," parameter)*)? ")"
+```
+
+Each parameter in a parameter list may optionally include a type annotation, and may optionally specify a default value. Default values are used when the corresponding argument is omitted at the call site. Untyped, typed, and defaulted parameters may be mixed freely in the same list.
 
 ```sard
 // Untyped parameters
@@ -932,9 +940,20 @@ plot : (x: integer, y: integer) { ... }
 // Typed parameters with return type
 divide : number (a: number, b: number) { = a / b }
 
-// Typed forward declaration
-compare : (a: integer, b: integer);
+// Default parameter values
+foo : (x, y = 10) { = x + y }
+foo(5)              // x = 5, y defaults to 10 -> 15
+foo(5, 2)           // x = 5, y = 2 -> 7
+
+bar : (x = 5, y) { = x * y }
+bar(, 10)           // x defaults to 5, y = 10 -> 50
+bar(2, 10)          // x = 2, y = 10 -> 20
+
+// Typed parameters with defaults
+fmt : (value: integer, pad: string = "0") { ... }
 ```
+
+Default expressions are evaluated at call time in the caller's scope, and only when the corresponding argument is omitted. An argument may be omitted by writing an empty slot before a comma, or by providing fewer arguments than parameters.
 
 **Type Enforcement:**
 When a variable is declared with a type annotation (`name : type`), the runtime enforces strict type safety:
@@ -1311,7 +1330,7 @@ Use `@` when you need multiple names for the same data. Use `~` when you need a 
 
 Objects with `callable = true` can be invoked. Invocation:
 1. Creates a new scope whose parent is the object's parent (or the object itself).
-2. Binds arguments to parameter names.
+2. Binds arguments to parameter names. Omitted arguments use the parameter's default value if one was declared, otherwise `null`.
 3. Executes the object's body block.
 4. Returns the block's return value.
 
@@ -1852,7 +1871,7 @@ type                 := identifier ("." identifier)*
 
 parameter-list       := "(" (parameter ("," parameter)*)? ")"
 
-parameter            := identifier (":" type)?
+parameter            := identifier (":" type)? ("=" expression)?
 
 assignment           := lvalue "=" expression statement-term
                         | lvalue "+=" expression statement-term
@@ -1959,7 +1978,8 @@ literal              := integer-literal
                         | color-literal
                         | currency-literal
 
-argument-list        := "(" (expression ("," expression)*)? ")"
+argument-list        := "(" (argument ("," argument)*)? ")"
+argument             := expression?
 
 array-literal        := "[" (expression ("," expression)*)? "]"
 
