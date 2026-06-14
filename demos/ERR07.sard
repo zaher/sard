@@ -1,0 +1,18 @@
+// Invalid Block/Statement Issues
+// ERROR: Empty statement block confusion
+// {} is valid empty block (expression)
+// But standalone ; is empty statement
+
+// This is valid empty statement:
+// ;
+
+// But trying to use block as condition incorrectly:
+// if { x > 0 } {  // Block cannot be used as condition
+//     print("positive")
+// }
+
+// ERROR: Block without proper termination
+{
+    x = 1
+    y = 2  // Missing statement terminator
+
