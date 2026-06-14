@@ -1459,6 +1459,7 @@ The following are callable objects provided by the runtime:
 | `else` | Used with `if` for alternative branch |
 | `negate` | Numeric negation (callable version) |
 | `break` | Exits from loop or block (runtime-defined via addons, not reserved) |
+| `len` | Returns the length of an array or string |
 
 **Note on `else`:** `else` serves a dual role. Syntactically, `else { ... }` is parsed as a **named block** that is passed by name to the preceding callable (e.g., `if`, `while`). At the same time, `else` exists as a built-in callable object in the root scope, which is the default handler that `if` and `while` delegate to when evaluating the alternate branch. Overriding the `else` object changes the behavior of `else` blocks across all constructs.
 
@@ -1686,7 +1687,30 @@ result = {
 
 **Implementation Note:** Addons can define `break` as a callable object that, when invoked, signals the interpreter to unwind the execution stack until the nearest enclosing loop or block boundary. The exact semantics (e.g., whether it accepts an argument to return a value) are defined by the addon implementation.
 
-### 9.5 Extending the Language
+### 9.5 Length Function
+
+The built-in callable `len` returns the number of elements in an array or the number of characters in a string.
+
+```sard
+arr = [10, 20, 30]
+print(len(arr))          // 3
+
+s = "hello"
+print(len(s))            // 5
+
+empty = []
+print(len(empty))        // 0
+
+multiline = "line1" \n "line2"
+print(len(multiline))    // 11
+```
+
+**Behavior:**
+- `len(array)` returns the array element count as an `integer`
+- `len(string)` returns the string length (in characters) as an `integer`
+- Passing any other type raises a runtime error
+
+### 9.6 Extending the Language
 
 Sard supports extensibility through callable objects and addons:
 
@@ -1883,6 +1907,19 @@ sale = price * 75%;             // 150 (25% discount)
 print(tax);
 print(final);
 print(sale);
+```
+
+### Example 12: Length Function
+
+```sard
+arr = [10, 20, 30, 40]
+print(len(arr))          // 4
+
+s = "hello"
+print(len(s))            // 5
+
+empty = []
+print(len(empty))        // 0
 ```
 
 ---

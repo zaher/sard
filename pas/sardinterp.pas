@@ -51,6 +51,7 @@ type
     function BuiltInIf(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
     function BuiltInWhile(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
     function BuiltInBreak(Scope: TSardValue): TSardValue;
+    function BuiltInLen(Args: array of TSardValue): TSardValue;
     function GetArrayElement(Arr: TSardValue; Index: Integer): TSardValue;
     procedure SetArrayElement(Arr: TSardValue; Index: Integer; Value: TSardValue);
   public
@@ -65,7 +66,7 @@ implementation
 
 constructor TInterpreter.Create;
 var
-  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, BreakObj: TSardValue;
+  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, BreakObj, LenObj: TSardValue;
 
   procedure AddBuiltin(const Name: string; Obj: TSardValue);
   begin
@@ -114,6 +115,12 @@ begin
   BreakObj.Callable := True;
   BreakObj.BuiltinName := 'break';
   AddBuiltin('break', BreakObj);
+
+  LenObj := TSardValue.Create;
+  LenObj.Kind := vkObject;
+  LenObj.Callable := True;
+  LenObj.BuiltinName := 'len';
+  AddBuiltin('len', LenObj);
 end;
 
 destructor TInterpreter.Destroy;
@@ -797,6 +804,8 @@ begin
           Result := BuiltInWhile(Scope, Args, Blocks)
         else if BuiltinName = 'break' then
           Result := BuiltInBreak(Scope)
+        else if BuiltinName = 'len' then
+          Result := BuiltInLen(Args)
         else
           Result := CallUserCallable(Callee, Scope, CallBase, Args, Blocks);
       finally
@@ -2046,6 +2055,26 @@ begin
     raise ESardError.Create('break outside loop');
   Result := NewValue;
   Result.Kind := vkNull;
+end;
+
+function TInterpreter.BuiltInLen(Args: array of TSardValue): TSardValue;
+var
+  Arg: TSardValue;
+begin
+  if Length(Args) < 1 then
+    raise ESardError.Create('len requires one argument');
+  Arg := Args[0];
+  Result := NewValue;
+  Result.Kind := vkInteger;
+  if Arg.Kind = vkArray then
+    Result.IntValue := Arg.ArrayItems.Count
+  else if Arg.Kind = vkString then
+    Result.IntValue := Length(Arg.StrValue)
+  else
+  begin
+    Result.Release;
+    raise ESardError.CreateFmt('len requires an array or string, got %s', [Arg.KindName]);
+  end;
 end;
 
 end.

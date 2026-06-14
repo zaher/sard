@@ -1,0 +1,23 @@
+// Length function tests
+
+// Array length
+arr = [10, 20, 30]
+print(len(arr))
+
+// Empty array
+empty = []
+print(len(empty))
+
+// String length
+s = "hello"
+print(len(s))
+
+// Single character string
+print(len("x"))
+
+// String with escapes
+multiline = "line1" \n "line2"
+print(len(multiline))
+
+// In expressions
+print(len(arr) + len(s))
