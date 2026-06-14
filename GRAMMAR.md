@@ -1455,7 +1455,9 @@ The following are callable objects provided by the runtime:
 |--------|----------|
 | `print` | Prints arguments to output |
 | `if` | Conditional execution |
-| `while` | Loop construct |
+| `while` | Conditional loop construct |
+| `loop` | Counted loop construct |
+| `for` | Iterate over array or string elements |
 | `else` | Used with `if` for alternative branch |
 | `negate` | Numeric negation (callable version) |
 | `break` | Exits from loop or block (runtime-defined via addons, not reserved) |
@@ -1658,6 +1660,116 @@ while (x < 10) {
     print("skipped")
 }
 ```
+
+#### `loop`
+
+`loop` is a built-in callable object that repeats a body block a fixed number of times. It accepts a single integer argument and an anonymous body block.
+
+```sard
+// Repeat 5 times
+loop(5) {
+    print("hello")
+}
+```
+
+**Syntax:**
+
+```sard
+loop(count) {
+    body
+}
+```
+
+- `count` — an expression that evaluates to an integer; specifies how many times to execute the body
+- `body` — an anonymous block executed once per iteration
+
+**Behavior:**
+- The count expression is evaluated once, before the first iteration.
+- The body block is executed exactly that many times.
+- A negative or zero count causes the body to be skipped.
+- `break` can be used to exit the loop early.
+
+```sard
+// Count up with loop
+i = 0
+loop(3) {
+    print(i)
+    i += 1
+}
+// Output: 0, 1, 2
+
+// Loop with a variable count
+n = 4
+loop(n) {
+    print("tick")
+}
+
+// Loop with break
+loop(10) {
+    print(i)
+    if (i = 2) {
+        break
+    }
+    i += 1
+}
+```
+
+**Note:** `loop` is an ordinary built-in callable object, not a reserved word. It can be shadowed by local declarations or passed around like any other callable.
+
+#### `for`
+
+`for` is a built-in callable object that iterates over the elements of an array or the characters of a string. It accepts two arguments and an anonymous body block.
+
+```sard
+for(collection, value) {
+    body
+}
+```
+
+- `collection` — an expression that evaluates to an `array` or a `string`
+- `value` — an identifier that names the loop variable; in each iteration it is bound to the current array element or a single-character string
+- `body` — an anonymous block executed once per element/character
+
+**Behavior:**
+- The collection expression is evaluated once, before the first iteration.
+- For arrays, the body is executed once for each element, with the loop variable bound to a copy of that element.
+- For strings, the body is executed once for each character, with the loop variable bound to a one-character string.
+- A zero-length array or empty string causes the body to be skipped.
+- `break` can be used to exit the loop early.
+- Passing any other type raises a runtime error.
+
+```sard
+// Iterate over an array
+nums = [10, 20, 30]
+for(nums, v) {
+    print(v)
+}
+// Output: 10, 20, 30
+
+// Iterate over a string
+for("hello", c) {
+    print(c)
+}
+// Output: h, e, l, l, o
+
+// Sum elements
+sum = 0
+for([1, 2, 3, 4, 5], v) {
+    sum += v
+}
+print(sum)               // 15
+
+// Break early
+for([1, 2, 3, 4, 5], v) {
+    if (v = 3) {
+        break
+    }
+    print(v)
+}
+// Output: 1, 2
+```
+
+**Note:** `for` is an ordinary built-in callable object, not a reserved word. It can be shadowed by local declarations or passed around like any other callable.
 
 #### `break`
 
@@ -1920,6 +2032,30 @@ print(len(s))            // 5
 
 empty = []
 print(len(empty))        // 0
+```
+
+### Example 13: Counted Loop
+
+```sard
+sum = 0
+loop(5) {
+    sum += 1
+}
+print(sum)               // 5
+```
+
+### Example 14: Iterate Over Array or String
+
+```sard
+for([10, 20, 30], v) {
+    print(v)
+}
+// Output: 10, 20, 30
+
+for("hello", c) {
+    print(c)
+}
+// Output: h, e, l, l, o
 ```
 
 ---

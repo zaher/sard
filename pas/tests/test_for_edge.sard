@@ -1,0 +1,20 @@
+// Empty array - should print nothing
+for([], v) {
+    print(v)
+}
+print("empty array done")
+
+// Nested array - element is cloned, modifying loop var does not affect original
+arr = [[1, 2], [3, 4]]
+for(arr, v) {
+    v[0] = 99
+    print(v)
+}
+print(arr)
+
+// Loop variable shadowing outer variable
+x = "outer"
+for([1, 2], x) {
+    print(x)
+}
+print(x)

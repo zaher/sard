@@ -1,0 +1,24 @@
+// Test for(a, v){...} over arrays
+for([1, 2, 3], v) {
+    print(v)
+}
+
+// Test for(a, v){...} over strings
+for("abc", c) {
+    print(c)
+}
+
+// Sum with for
+sum = 0
+for([1, 2, 3, 4, 5], v) {
+    sum += v
+}
+print(sum)
+
+// Break in for
+for([1, 2, 3, 4, 5], v) {
+    if (v = 3) {
+        break
+    }
+    print(v)
+}

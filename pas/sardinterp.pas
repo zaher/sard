@@ -50,6 +50,8 @@ type
     function BuiltInPrint(Scope: TSardValue; Args: array of TSardValue): TSardValue;
     function BuiltInIf(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
     function BuiltInWhile(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+    function BuiltInLoop(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+    function BuiltInFor(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
     function BuiltInBreak(Scope: TSardValue): TSardValue;
     function BuiltInLen(Args: array of TSardValue): TSardValue;
     function GetArrayElement(Arr: TSardValue; Index: Integer): TSardValue;
@@ -66,7 +68,7 @@ implementation
 
 constructor TInterpreter.Create;
 var
-  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, BreakObj, LenObj: TSardValue;
+  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, LenObj: TSardValue;
 
   procedure AddBuiltin(const Name: string; Obj: TSardValue);
   begin
@@ -109,6 +111,18 @@ begin
   WhileObj.Callable := True;
   WhileObj.BuiltinName := 'while';
   AddBuiltin('while', WhileObj);
+
+  LoopObj := TSardValue.Create;
+  LoopObj.Kind := vkObject;
+  LoopObj.Callable := True;
+  LoopObj.BuiltinName := 'loop';
+  AddBuiltin('loop', LoopObj);
+
+  ForObj := TSardValue.Create;
+  ForObj.Kind := vkObject;
+  ForObj.Callable := True;
+  ForObj.BuiltinName := 'for';
+  AddBuiltin('for', ForObj);
 
   BreakObj := TSardValue.Create;
   BreakObj.Kind := vkObject;
@@ -783,6 +797,13 @@ begin
             LazyCond.LazyNode := ArgNodes[I];
             Args[I] := LazyCond;
           end
+          else if (BuiltinName = 'for') and (I = 1) then
+          begin
+            LazyCond := NewValue;
+            LazyCond.Kind := vkLazy;
+            LazyCond.LazyNode := ArgNodes[I];
+            Args[I] := LazyCond;
+          end
           else
             Args[I] := EvalExpression(ArgNodes[I], Scope);
         end;
@@ -802,6 +823,10 @@ begin
           Result := BuiltInIf(Scope, Args, Blocks)
         else if BuiltinName = 'while' then
           Result := BuiltInWhile(Scope, Args, Blocks)
+        else if BuiltinName = 'loop' then
+          Result := BuiltInLoop(Scope, Args, Blocks)
+        else if BuiltinName = 'for' then
+          Result := BuiltInFor(Scope, Args, Blocks)
         else if BuiltinName = 'break' then
           Result := BuiltInBreak(Scope)
         else if BuiltinName = 'len' then
@@ -2041,6 +2066,235 @@ begin
       end;
       if FHasReturn then Break;
     end;
+  finally
+    if FBreakDepth >= LoopDepth then
+      Dec(FBreakDepth);
+  end;
+end;
+
+function TInterpreter.BuiltInLoop(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+var
+  Count: Int64;
+  I: Integer;
+  BlockNode: TASTNode;
+  BodyBlock: TASTNode;
+  NewScopeObj: TSardValue;
+  SavedReturn: TSardValue;
+  SavedHasReturn: Boolean;
+  Ret: TSardValue;
+  LoopDepth: Integer;
+  BodyResult: TSardValue;
+  CountObj: TSardValue;
+  Coerced: TSardValue;
+begin
+  BodyBlock := nil;
+  if Blocks <> nil then
+  begin
+    for I := 0 to High(Blocks.Children) do
+    begin
+      BlockNode := Blocks.Children[I];
+      if BlockNode.Name = '' then
+        BodyBlock := BlockNode;
+    end;
+  end;
+
+  { Determine count; default to 0 if not supplied }
+  Count := 0;
+  if Length(Args) > 0 then
+  begin
+    CountObj := Args[0];
+    if CountObj <> nil then
+    begin
+      if CountObj.Kind = vkInteger then
+        Count := CountObj.IntValue
+      else if CountObj.Kind = vkNumber then
+        Count := Trunc(CountObj.FloatValue)
+      else if CountObj.Kind = vkString then
+      begin
+        Coerced := CoerceValue(CountObj, 'integer');
+        try
+          Count := Coerced.IntValue;
+        finally
+          Coerced.Release;
+        end;
+      end
+      else
+        raise ESardError.CreateFmt('loop count must be an integer, got %s', [CountObj.KindName]);
+    end;
+  end;
+
+  Result := NewValue;
+  Result.Kind := vkNull;
+
+  if Count <= 0 then Exit;
+  if BodyBlock = nil then Exit;
+
+  Inc(FBreakDepth);
+  LoopDepth := FBreakDepth;
+  try
+    for I := 1 to Count do
+    begin
+      NewScopeObj := NewScope(Scope);
+      SavedReturn := FReturnValue;
+      SavedHasReturn := FHasReturn;
+      FReturnValue := nil;
+      FHasReturn := False;
+      BodyResult := nil;
+      try
+        BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+        if BodyResult <> nil then BodyResult.AddRef;
+      finally
+        NewScopeObj.Release;
+        if FReturnValue <> nil then FReturnValue.Release;
+        FReturnValue := SavedReturn;
+        FHasReturn := SavedHasReturn;
+      end;
+      if BodyResult <> nil then
+      begin
+        Result.Release;
+        Result := BodyResult;
+      end;
+      if FBreakDepth < LoopDepth then
+      begin
+        FBreakDepth := LoopDepth;
+        Break;
+      end;
+      if FHasReturn then Break;
+    end;
+  finally
+    if FBreakDepth >= LoopDepth then
+      Dec(FBreakDepth);
+  end;
+end;
+
+function TInterpreter.BuiltInFor(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+var
+  I: Integer;
+  BlockNode: TASTNode;
+  BodyBlock: TASTNode;
+  NewScopeObj: TSardValue;
+  SavedReturn: TSardValue;
+  SavedHasReturn: Boolean;
+  LoopDepth: Integer;
+  BodyResult: TSardValue;
+  Container: TSardValue;
+  VarName: string;
+  ElemValue: TSardValue;
+  Ch: Char;
+  LenValue: Integer;
+  StrValue: string;
+begin
+  BodyBlock := nil;
+  if Blocks <> nil then
+  begin
+    for I := 0 to High(Blocks.Children) do
+    begin
+      BlockNode := Blocks.Children[I];
+      if BlockNode.Name = '' then
+        BodyBlock := BlockNode;
+    end;
+  end;
+
+  if Length(Args) < 2 then
+    raise ESardError.Create('for requires two arguments: collection and variable name');
+
+  Container := Args[0];
+  if Container = nil then
+    raise ESardError.Create('for collection is nil');
+
+  if (Args[1] = nil) or (Args[1].Kind <> vkLazy) or (Args[1].LazyNode = nil) or (Args[1].LazyNode.Kind <> nkIdentifier) then
+    raise ESardError.Create('for second argument must be a variable name');
+
+  VarName := LowerName(Args[1].LazyNode.Name);
+
+  Result := NewValue;
+  Result.Kind := vkNull;
+
+  if BodyBlock = nil then Exit;
+
+  Inc(FBreakDepth);
+  LoopDepth := FBreakDepth;
+  try
+    if Container.Kind = vkArray then
+    begin
+      for I := 0 to Container.ArrayItems.Count - 1 do
+      begin
+        ElemValue := TSardValue(Container.ArrayItems[I]).Clone(True);
+        try
+          NewScopeObj := NewScope(Scope);
+          NewScopeObj.SetMember(VarName, ElemValue);
+          SavedReturn := FReturnValue;
+          SavedHasReturn := FHasReturn;
+          FReturnValue := nil;
+          FHasReturn := False;
+          BodyResult := nil;
+          try
+            BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+            if BodyResult <> nil then BodyResult.AddRef;
+          finally
+            NewScopeObj.Release;
+            if FReturnValue <> nil then FReturnValue.Release;
+            FReturnValue := SavedReturn;
+            FHasReturn := SavedHasReturn;
+          end;
+          if BodyResult <> nil then
+          begin
+            Result.Release;
+            Result := BodyResult;
+          end;
+          if FBreakDepth < LoopDepth then
+          begin
+            FBreakDepth := LoopDepth;
+            Break;
+          end;
+          if FHasReturn then Break;
+        finally
+          ElemValue.Release;
+        end;
+      end;
+    end
+    else if Container.Kind = vkString then
+    begin
+      StrValue := Container.StrValue;
+      LenValue := Length(StrValue);
+      for I := 1 to LenValue do
+      begin
+        Ch := StrValue[I];
+        ElemValue := NewValue;
+        ElemValue.Kind := vkString;
+        ElemValue.StrValue := Ch;
+        NewScopeObj := NewScope(Scope);
+        NewScopeObj.SetMember(VarName, ElemValue);
+        ElemValue.Release;
+        SavedReturn := FReturnValue;
+        SavedHasReturn := FHasReturn;
+        FReturnValue := nil;
+        FHasReturn := False;
+        BodyResult := nil;
+        try
+          BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+          if BodyResult <> nil then BodyResult.AddRef;
+        finally
+          NewScopeObj.Release;
+          if FReturnValue <> nil then FReturnValue.Release;
+          FReturnValue := SavedReturn;
+          FHasReturn := SavedHasReturn;
+        end;
+        if BodyResult <> nil then
+        begin
+          Result.Release;
+          Result := BodyResult;
+        end;
+        if FBreakDepth < LoopDepth then
+        begin
+          FBreakDepth := LoopDepth;
+          Break;
+        end;
+        if FHasReturn then Break;
+      end;
+    end
+    else
+      raise ESardError.CreateFmt('for requires an array or string, got %s', [Container.KindName]);
   finally
     if FBreakDepth >= LoopDepth then
       Dec(FBreakDepth);
