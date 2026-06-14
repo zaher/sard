@@ -993,6 +993,10 @@ begin
       for I := 0 to High(Node.ParamDefaults) do
         if Node.ParamDefaults[I] <> nil then
           Callable.ParamDefaults[I] := Node.ParamDefaults[I].DeepClone;
+      SetLength(Callable.ParamOpen, Length(Node.ParamOpen));
+      for I := 0 to High(Node.ParamOpen) do
+        Callable.ParamOpen[I] := Node.ParamOpen[I];
+      Callable.OpenParamIndex := Node.OpenParamIndex;
       Callable.ReturnType := Node.ReturnType;
       Callable.Body := BodyNode.DeepClone;
       Callable.Parent := Scope;
@@ -1704,9 +1708,9 @@ end;
 function TInterpreter.CallUserCallable(Callable: TSardValue; Scope: TSardValue; CallBase: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   CallableScope, BodyScope: TSardValue;
-  I: Integer;
+  I, J, OpenIdx: Integer;
   ParamName: string;
-  ArgValue: TSardValue;
+  ArgValue, Arr, V: TSardValue;
   OldReturn: TSardValue;
   OldHasReturn: Boolean;
   BlockNode: TASTNode;
@@ -1726,10 +1730,29 @@ begin
     CallableScope := NewScope(Scope);
   try
     { Bind arguments; omitted arguments use the declared default or null }
+    OpenIdx := Callable.OpenParamIndex;
     for I := 0 to Callable.Params.Count - 1 do
     begin
       ParamName := Callable.Params[I];
-      if (I <= High(Args)) and (Args[I] <> nil) then
+      if I = OpenIdx then
+      begin
+        { Open parameter collects all remaining arguments into an array }
+        Arr := NewValue;
+        Arr.Kind := vkArray;
+        for J := I to High(Args) do
+        begin
+          if Args[J] <> nil then
+            Arr.ArrayItems.Add(Args[J].Clone(True))
+          else
+          begin
+            V := NewValue;
+            V.Kind := vkNull;
+            Arr.ArrayItems.Add(V);
+          end;
+        end;
+        ArgValue := Arr;
+      end
+      else if (I <= High(Args)) and (Args[I] <> nil) then
         ArgValue := Args[I].Clone(True)
       else if (I <= High(Callable.ParamDefaults)) and (Callable.ParamDefaults[I] <> nil) then
         ArgValue := EvalExpression(Callable.ParamDefaults[I], Scope)

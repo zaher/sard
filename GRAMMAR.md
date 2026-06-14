@@ -967,10 +967,31 @@ Introduces a new variable or callable object. The semicolon is optional at end o
 
 ```
 parameter            := identifier (":" type)? ("=" expression)?
-parameter-list       := "(" (parameter ("," parameter)*)? ")"
+open-parameter       := identifier "..."
+parameter-list       := "(" (parameter ("," parameter)*)? ("," open-parameter)? ")"
 ```
 
 Each parameter in a parameter list may optionally include a type annotation, and may optionally specify a default value. Default values are used when the corresponding argument is omitted at the call site. Untyped, typed, and defaulted parameters may be mixed freely in the same list.
+
+**Open Parameters:**
+
+An *open parameter* (variadic parameter) is declared by writing an identifier followed by three dots (`...`). It must be the last parameter in the list. When the callable is invoked, all remaining positional arguments are collected into an `array` value bound to the open parameter name. The elements are accessed with normal array indexing (`o[i]`).
+
+```sard
+// Open parameter only
+sum : (o...) {
+    = o[0] + o[1] + o[2]
+}
+print(sum(10, 20, 30))      // 60
+
+// Mixed fixed and open parameters
+foo : (prefix, values...) {
+    = prefix + values[0]
+}
+print(foo("item: ", 1, 2))  // item: 1
+```
+
+An open parameter cannot have a type annotation or a default value, and no further parameters may appear after it. Passing arguments after an open parameter is not allowed.
 
 ```sard
 // Untyped parameters

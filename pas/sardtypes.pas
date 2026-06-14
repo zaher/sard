@@ -21,7 +21,7 @@ type
     tkPlus, tkMinus, tkStar, tkSlash, tkCaret, tkPercent,
     tkMod, tkAmp, tkBar, tkAnd, tkOr, tkNot,
     tkBang, tkTilde, tkTildeTilde, tkAt,
-    tkIncrement, tkDecrement, tkPlusEqual, tkMinusEqual,
+    tkIncrement, tkDecrement, tkPlusEqual, tkMinusEqual, tkEllipsis,
     tkLParen, tkRParen, tkLBrace, tkRBrace, tkLBracket, tkRBracket,
     tkNewLine
   );
@@ -67,6 +67,8 @@ type
     Params: array of string;
     ParamTypes: array of string;
     ParamDefaults: array of TASTNode;
+    ParamOpen: array of Boolean;
+    OpenParamIndex: Integer;
     ReturnType: string;
     HasParamList: Boolean;
     constructor Create(AKind: TNodeKind; const AText: string; ALine, ACol: Integer);
@@ -96,6 +98,8 @@ type
     Params: TStringList;
     ParamTypes: TStringList;
     ParamDefaults: array of TASTNode;
+    ParamOpen: array of Boolean;
+    OpenParamIndex: Integer;
     ReturnType: string;
     Body: TASTNode;
     DeclaredType: string;
@@ -170,9 +174,10 @@ begin
   BoolValue := False;
   Name := '';
   Op := '';
-  Typ := '';
-  ReturnType := '';
-end;
+    Typ := '';
+    ReturnType := '';
+    OpenParamIndex := -1;
+  end;
 
 destructor TASTNode.Destroy;
 var
@@ -226,6 +231,10 @@ begin
   for I := 0 to High(ParamDefaults) do
     if ParamDefaults[I] <> nil then
       Result.ParamDefaults[I] := ParamDefaults[I].DeepClone;
+  SetLength(Result.ParamOpen, Length(ParamOpen));
+  for I := 0 to High(ParamOpen) do
+    Result.ParamOpen[I] := ParamOpen[I];
+  Result.OpenParamIndex := OpenParamIndex;
   if Left <> nil then Result.Left := Left.DeepClone;
   if Right <> nil then Result.Right := Right.DeepClone;
   SetLength(Result.Children, Length(Children));
@@ -299,11 +308,12 @@ begin
   Params := TStringList.Create;
   ParamTypes := TStringList.Create;
   Parent := nil;
-  Callable := False;
-  Body := nil;
-  DeclaredType := '';
-  IsScope := False;
-  LazyNode := nil;
+    Callable := False;
+    Body := nil;
+    DeclaredType := '';
+    IsScope := False;
+    LazyNode := nil;
+    OpenParamIndex := -1;
 end;
 
 procedure TSardValue.AddRef;
@@ -368,8 +378,12 @@ begin
   for I := 0 to High(ParamDefaults) do
     if ParamDefaults[I] <> nil then
       Result.ParamDefaults[I] := ParamDefaults[I].DeepClone;
-    Result.ReturnType := ReturnType;
-    Result.DeclaredType := DeclaredType;
+  SetLength(Result.ParamOpen, Length(ParamOpen));
+  for I := 0 to High(ParamOpen) do
+    Result.ParamOpen[I] := ParamOpen[I];
+  Result.OpenParamIndex := OpenParamIndex;
+  Result.ReturnType := ReturnType;
+  Result.DeclaredType := DeclaredType;
     Result.BuiltinName := BuiltinName;
     Result.IsScope := IsScope;
     Result.Parent := nil;

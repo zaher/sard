@@ -1,0 +1,20 @@
+// Open parameters: collect remaining arguments into an array
+
+// Open parameter only
+sum3 : (o...) {
+    = o[0] + o[1] + o[2]
+}
+print(sum3(10, 20, 30))
+
+// Mixed fixed and open parameters
+foo : (prefix, values...) {
+    = prefix + values[0]
+}
+print(foo("item: ", 1, 2))
+
+// Empty open array
+show : (rest...) {
+    = rest
+}
+print(show())
+print(show(1, 2))

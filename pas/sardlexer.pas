@@ -417,7 +417,17 @@ begin
     ':': begin Advance; FTokenText := ':'; Result := tkColon; Exit; end;
     ';': begin Advance; FTokenText := ';'; Result := tkSemicolon; Exit; end;
     ',': begin Advance; FTokenText := ','; Result := tkComma; Exit; end;
-    '.': begin Advance; FTokenText := '.'; Result := tkDot; Exit; end;
+    '.':
+      begin
+        if (PeekAt(1) = '.') and (PeekAt(2) = '.') then
+        begin
+          Advance; Advance; Advance;
+          FTokenText := '...';
+          Result := tkEllipsis;
+          Exit;
+        end;
+        Advance; FTokenText := '.'; Result := tkDot; Exit;
+      end;
     '=': begin Advance; FTokenText := '='; Result := tkAssign; Exit; end;
     '<': begin Advance; FTokenText := '<'; Result := tkLess; Exit; end;
     '>': begin Advance; FTokenText := '>'; Result := tkGreater; Exit; end;

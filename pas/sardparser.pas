@@ -38,7 +38,7 @@ type
     function ParseLValue: TASTNode;
     function ParseArgumentList: TASTNode;
     function ParseArrayLiteral: TASTNode;
-    procedure ParseTypedParameterList(out Names, Types: TStringArray; out Defaults: TASTNodeArray; out RetType: string);
+    procedure ParseTypedParameterList(out Names, Types: TStringArray; out Defaults: TASTNodeArray; out OpenIndex: Integer; out RetType: string);
     function ParsePostfixChain(StartNode: TASTNode): TASTNode;
     function MakeError(const Msg: string): ESardError;
     function NewNode(AKind: TNodeKind): TASTNode;
@@ -199,6 +199,7 @@ var
   Saved: TToken;
   ParamNames, ParamTypes: TStringArray;
   ParamDefaults: TASTNodeArray;
+  OpenIndex: Integer;
   RetType: string;
   HasType, HasParams: Boolean;
   IsLVal: Boolean;
@@ -280,7 +281,7 @@ begin
     { Callable with params: name : (params) ... }
     if FCurrent.Kind = tkLParen then
     begin
-      ParseTypedParameterList(ParamNames, ParamTypes, ParamDefaults, RetType);
+      ParseTypedParameterList(ParamNames, ParamTypes, ParamDefaults, OpenIndex, RetType);
       Result := NewNode(nkDeclare);
       Result.Name := Name;
       Result.HasParamList := True;
@@ -288,6 +289,10 @@ begin
       Result.Params := ParamNames;
       Result.ParamTypes := ParamTypes;
       Result.ParamDefaults := ParamDefaults;
+      Result.OpenParamIndex := OpenIndex;
+      SetLength(Result.ParamOpen, Length(ParamNames));
+      if OpenIndex >= 0 then
+        Result.ParamOpen[OpenIndex] := True;
       if FCurrent.Kind = tkLBrace then
         Result.AddChild(ParseBlock);
       ParseStatementTerm;
@@ -306,7 +311,7 @@ begin
       RetType := TypeName;
       if FCurrent.Kind = tkLParen then
       begin
-        ParseTypedParameterList(ParamNames, ParamTypes, ParamDefaults, RetType);
+        ParseTypedParameterList(ParamNames, ParamTypes, ParamDefaults, OpenIndex, RetType);
         { param list consumed; RetType stays as TypeName because ParseTypedParameterList does not modify it when already set? It is out param so it will be cleared. Restore below. }
         RetType := TypeName;
       end;
@@ -317,6 +322,10 @@ begin
       Result.Params := ParamNames;
       Result.ParamTypes := ParamTypes;
       Result.ParamDefaults := ParamDefaults;
+      Result.OpenParamIndex := OpenIndex;
+      SetLength(Result.ParamOpen, Length(ParamNames));
+      if OpenIndex >= 0 then
+        Result.ParamOpen[OpenIndex] := True;
       if FCurrent.Kind = tkLBrace then
         Result.AddChild(ParseBlock);
       ParseStatementTerm;
@@ -512,12 +521,12 @@ begin
   end;
 end;
 
-procedure TParser.ParseTypedParameterList(out Names, Types: TStringArray; out Defaults: TASTNodeArray; out RetType: string);
+procedure TParser.ParseTypedParameterList(out Names, Types: TStringArray; out Defaults: TASTNodeArray; out OpenIndex: Integer; out RetType: string);
 var
   N, T: string;
   D: TASTNode;
 
-  procedure AddParam(const AName, AType: string; ADefault: TASTNode);
+  procedure AddParam(const AName, AType: string; ADefault: TASTNode; IsOpen: Boolean);
   var
     L: Integer;
   begin
@@ -528,34 +537,26 @@ var
     Names[L] := AName;
     Types[L] := AType;
     Defaults[L] := ADefault;
+    if IsOpen then
+      OpenIndex := L;
   end;
 
-begin
-  RetType := '';
-  SetLength(Names, 0);
-  SetLength(Types, 0);
-  SetLength(Defaults, 0);
-  Expect(tkLParen);
-  if FCurrent.Kind <> tkRParen then
+  function ParseOneParam: Boolean;
+  var
+    IsOpen: Boolean;
   begin
+    Result := False;
     N := Expect(tkIdentifier);
-    T := '';
-    D := nil;
-    if FCurrent.Kind = tkColon then
+    IsOpen := False;
+    if FCurrent.Kind = tkEllipsis then
     begin
       Advance;
-      T := Expect(tkIdentifier);
-    end;
-    if FCurrent.Kind = tkAssign then
+      IsOpen := True;
+      T := '';
+      D := nil;
+    end
+    else
     begin
-      Advance;
-      D := ParseExpression;
-    end;
-    AddParam(N, T, D);
-    while FCurrent.Kind = tkComma do
-    begin
-      Advance;
-      N := Expect(tkIdentifier);
       T := '';
       D := nil;
       if FCurrent.Kind = tkColon then
@@ -568,7 +569,37 @@ begin
         Advance;
         D := ParseExpression;
       end;
-      AddParam(N, T, D);
+    end;
+    AddParam(N, T, D, IsOpen);
+    Result := IsOpen;
+  end;
+
+begin
+  RetType := '';
+  OpenIndex := -1;
+  SetLength(Names, 0);
+  SetLength(Types, 0);
+  SetLength(Defaults, 0);
+  Expect(tkLParen);
+  if FCurrent.Kind <> tkRParen then
+  begin
+    if ParseOneParam then
+    begin
+      if FCurrent.Kind = tkComma then
+        raise MakeError('Open parameter must be the last parameter');
+    end
+    else
+    begin
+      while FCurrent.Kind = tkComma do
+      begin
+        Advance;
+        if ParseOneParam then
+        begin
+          if FCurrent.Kind = tkComma then
+            raise MakeError('Open parameter must be the last parameter');
+          Break;
+        end;
+      end;
     end;
   end;
   Expect(tkRParen);
