@@ -222,6 +222,10 @@ begin
 end;
 
 function TInterpreter.EvalNode(Node: TASTNode; Scope: TSardValue): TSardValue;
+var
+  SavedReturn: TSardValue;
+  SavedHasReturn: Boolean;
+  BlockScope: TSardValue;
 begin
   if Node = nil then
   begin
@@ -231,7 +235,24 @@ begin
 
   case Node.Kind of
     nkStatements: Result := EvalStatements(Node, Scope);
-    nkBlock: Result := EvalStatements(Node, NewScope(Scope));
+    nkBlock:
+      begin
+        { A block's return statement sets the block's value; it must not
+          propagate the return flag to the enclosing statement list. }
+        SavedReturn := FReturnValue;
+        SavedHasReturn := FHasReturn;
+        FReturnValue := nil;
+        FHasReturn := False;
+        BlockScope := NewScope(Scope);
+        try
+          Result := EvalStatements(Node, BlockScope);
+        finally
+          BlockScope.Release;
+          if FReturnValue <> nil then FReturnValue.Release;
+          FReturnValue := SavedReturn;
+          FHasReturn := SavedHasReturn;
+        end;
+      end;
     nkLiteral: Result := EvalLiteral(Node);
     nkIdentifier: Result := EvalIdentifier(Node, Scope);
     nkBinary: Result := EvalBinary(Node, Scope);
