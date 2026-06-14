@@ -1,0 +1,39 @@
+// Type casting tests
+
+// Integer casts
+print(integer(3.14))
+print(integer("42"))
+print(integer(true))
+
+// Number casts
+print(number(42))
+print(number("3.14"))
+
+// String casts
+print(string(42))
+print(string(3.14))
+print(string(true))
+
+// Boolean casts
+print(boolean(1))
+print(boolean(0))
+print(boolean(""))
+print(boolean("hello"))
+
+// Currency casts
+print(currency(100))
+print(currency(3.14))
+
+// Color casts
+print(color(255))
+
+// In expressions
+x = integer("10") + number("20")
+print(x)
+
+// Nested casts
+print(string(integer("7")))
+
+// Statement-level type cast
+number("3.14")
+print(integer(5.9) + 1)

@@ -47,6 +47,7 @@ type
     function NewLiteralStr(const V: string): TASTNode;
     function NewIdent(const V: string): TASTNode;
     function CloneLValue(Node: TASTNode): TASTNode;
+    function IsTypeName(const Name: string): Boolean;
   public
     constructor Create(Lexer: TLexer);
     function ParseProgram: TASTNode;
@@ -155,6 +156,15 @@ begin
   if Node.Right <> nil then Result.Right := CloneLValue(Node.Right);
 end;
 
+function TParser.IsTypeName(const Name: string): Boolean;
+var
+  N: string;
+begin
+  N := LowerName(Name);
+  Result := (N = 'integer') or (N = 'number') or (N = 'string') or (N = 'boolean') or
+            (N = 'color') or (N = 'currency') or (N = 'array') or (N = 'object');
+end;
+
 function TParser.ParseProgram: TASTNode;
 var
   Stmt: TASTNode;
@@ -232,6 +242,20 @@ begin
   Saved := FCurrent;
   Name := FCurrent.Text;
   Advance;
+
+  { Type cast at statement level: type-name ( expression ) }
+  if (FCurrent.Kind = tkLParen) and IsTypeName(Name) then
+  begin
+    Node := NewNode(nkTypeCast);
+    Node.Name := Name;
+    Expect(tkLParen);
+    Node.Left := ParseExpression();
+    Expect(tkRParen);
+    Result := ParseExpression(Node);
+    if not ParseStatementTerm then
+      raise MakeError('Expected statement terminator after type cast');
+    Exit;
+  end;
 
   { Declaration: name : ... }
   if FCurrent.Kind = tkColon then
@@ -978,10 +1002,23 @@ begin
       end;
     tkIdentifier:
       begin
-        Node := NewNode(nkIdentifier);
-        Node.Name := FCurrent.Text;
-        Result := Node;
-        Advance;
+        if IsTypeName(FCurrent.Text) and (Peek.Kind = tkLParen) then
+        begin
+          Node := NewNode(nkTypeCast);
+          Node.Name := FCurrent.Text;
+          Advance;
+          Expect(tkLParen);
+          Node.Left := ParseExpression();
+          Expect(tkRParen);
+          Result := Node;
+        end
+        else
+        begin
+          Node := NewNode(nkIdentifier);
+          Node.Name := FCurrent.Text;
+          Result := Node;
+          Advance;
+        end;
       end;
     tkLParen:
       begin

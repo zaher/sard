@@ -34,6 +34,7 @@ type
     nkAssign, nkDeclare, nkReturn,
     nkMemberAccess, nkIndexAccess, nkCall,
     nkObjectNew, nkObjectCopy, nkReference,
+    nkTypeCast,
     nkStatements
   );
 
@@ -260,6 +261,7 @@ begin
     nkObjectNew: K := 'ObjectNew';
     nkObjectCopy: K := 'ObjectCopy';
     nkReference: K := 'Reference';
+    nkTypeCast: K := 'TypeCast';
   else
     K := 'Unknown';
   end;

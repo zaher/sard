@@ -423,6 +423,54 @@ y : my_module.point;
 | `array` | Ordered collection | `[1, 2, 3]` |
 | `object` | User-defined object | `~my_proto` |
 
+### 3.4 Type Casting
+
+Sard supports **Pascal-style type casting** using built-in type names as cast operators:
+
+```
+type-cast            := type-name "(" expression ")"
+
+type-name            := "integer" | "number" | "string" | "boolean"
+                        | "color" | "currency" | "array" | "object"
+```
+
+A type-cast expression converts the value of the inner expression to the named type. Type casts are parsed as **primary expressions** and can appear anywhere a primary expression is allowed, including nested casts and arbitrary expressions.
+
+**Supported conversions** follow the same rules as typed-variable auto-casting (see §3.1):
+
+| From | To | Result |
+|------|-----|--------|
+| `number` | `integer` | Truncated toward zero (`integer(3.14)` → `3`) |
+| `string` | `integer` | Parsed as integer (`integer("42")` → `42`) |
+| `boolean` | `integer` | `true` → `1`, `false` → `0` |
+| `integer` / `string` | `number` | Converted to floating-point |
+| any | `string` | Human-readable string form |
+| any | `boolean` | Truthiness test (`0`, `null`, `""` → `false`; others → `true`) |
+| `integer` / `number` | `currency` | Fixed-point currency value |
+| `integer` | `color` | RGB value (`color(255)` → `#0000FF`) |
+| `array` | `array` | Copy of the array |
+| `object` | `object` | Copy of the object |
+
+```sard
+i = integer(3.14)              // 3
+n = number("42")               // 42.0
+s = string(42)                 // "42"
+b = boolean(1)                 // true
+c = color(255)                 // #0000FF
+m = currency(3.14)             // 3.140000
+
+// In expressions and nested
+result = integer(string(42)) + 1   // 43
+```
+
+Invalid conversions raise a runtime error:
+
+```sard
+x = integer("hello")           // ERROR: cannot convert "hello" to integer
+```
+
+> **Note:** Type names are reserved words in Sard. A type-name followed immediately by `(` is always parsed as a type cast, not as a callable invocation. This is consistent with Pascal's cast syntax (`Integer(X)`), not a function call.
+
 ---
 
 ## 4. Expressions
@@ -1970,6 +2018,12 @@ primary              := literal
                         | "~~" identifier
                         | "@" expression
                         | array-literal
+                        | type-cast
+
+type-cast            := type-name "(" expression ")"
+
+type-name            := "integer" | "number" | "string" | "boolean"
+                        | "color" | "currency" | "array" | "object"
 
 literal              := integer-literal
                         | number-literal
@@ -2023,6 +2077,7 @@ qualified-identifier := identifier ("." identifier)*
 | `#` | Color literal prefix |
 | `{ }` | Block / object body / named block body |
 | `identifier { }` | Named block (e.g. `named_block { ... }`) |
+| `type-name ( expr )` | Type cast (Pascal-style, e.g. `integer(x)`) |
 | `( )` | Argument list / grouping |
 | `[ ]` | Array literal / index |
 | `;` | Statement terminator (optional at end of line) |

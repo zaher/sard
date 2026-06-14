@@ -40,6 +40,7 @@ type
     function EvalObjectNew(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalObjectCopy(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalReference(Node: TASTNode; Scope: TSardValue): TSardValue;
+    function EvalTypeCast(Node: TASTNode; Scope: TSardValue): TSardValue;
     function ApplyOperator(const Op: string; Left, Right: TSardValue): TSardValue;
     function ApplyUnary(const Op: string; Operand: TSardValue): TSardValue;
     function CoerceValue(Value: TSardValue; const TargetType: string): TSardValue;
@@ -226,6 +227,7 @@ begin
     nkObjectNew: Result := EvalObjectNew(Node, Scope);
     nkObjectCopy: Result := EvalObjectCopy(Node, Scope);
     nkReference: Result := EvalReference(Node, Scope);
+    nkTypeCast: Result := EvalTypeCast(Node, Scope);
   else
     raise ESardError.Create('Unknown AST node kind');
   end;
@@ -1212,6 +1214,18 @@ begin
   end
   else
     Result := EvalExpression(Node.Left, Scope);
+end;
+
+function TInterpreter.EvalTypeCast(Node: TASTNode; Scope: TSardValue): TSardValue;
+var
+  Val: TSardValue;
+begin
+  Val := EvalExpression(Node.Left, Scope);
+  try
+    Result := CoerceValue(Val, Node.Name);
+  finally
+    Val.Release;
+  end;
 end;
 
 function TInterpreter.EvalLValue(Node: TASTNode; Scope: TSardValue; out Owner: TSardValue; out Name: string; out Index: Integer; out IsIndexed: Boolean; out OwnerOwned: Boolean): Boolean;
