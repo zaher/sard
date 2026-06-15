@@ -28,6 +28,7 @@ type
     function ReadHex: string;
     function ReadColor: string;
     function ReadCurrency: string;
+    function ReadDate: string;
     function ReadEscape: string;
     function IsIdStart(C: Char): Boolean;
     function IsIdContinue(C: Char): Boolean;
@@ -277,6 +278,33 @@ begin
     Result := S + '.000000';
 end;
 
+function TLexer.ReadDate: string;
+var
+  Start: Integer;
+  S: string;
+  Year, Month, Day: Integer;
+  DateValue: TDateTime;
+begin
+  Advance; { '0' }
+  Advance; { 't' }
+  Start := FPos;
+  while IsDigit(Peek) or (Peek = '_') do
+    Advance;
+  S := Copy(FSource, Start, FPos - Start);
+  S := StringReplace(S, '_', '', [rfReplaceAll]);
+  if Length(S) <> 8 then
+    raise ESardError.CreateFmt('Invalid date literal at line %d col %d: expected 8 digits', [FLine, FCol]);
+  Year := StrToInt(Copy(S, 1, 4));
+  Month := StrToInt(Copy(S, 5, 2));
+  Day := StrToInt(Copy(S, 7, 2));
+  try
+    DateValue := EncodeDate(Year, Month, Day);
+  except
+    raise ESardError.CreateFmt('Invalid date literal at line %d col %d', [FLine, FCol]);
+  end;
+  Result := IntToStr(Trunc(DateValue));
+end;
+
 function TLexer.ReadEscape: string;
 var
   C: Char;
@@ -448,6 +476,14 @@ begin
     '}': begin Advance; FTokenText := '}'; Result := tkRBrace; Exit; end;
     '[': begin Advance; FTokenText := '['; Result := tkLBracket; Exit; end;
     ']': begin Advance; FTokenText := ']'; Result := tkRBracket; Exit; end;
+  end;
+
+  { Date }
+  if (C = '0') and ((C2 = 't') or (C2 = 'T')) then
+  begin
+    FTokenText := ReadDate;
+    Result := tkDate;
+    Exit;
   end;
 
   { Hex }

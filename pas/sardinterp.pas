@@ -324,6 +324,11 @@ begin
     Result.Kind := vkString;
     Result.StrValue := Node.StrValue;
   end
+  else if Node.IsDate then
+  begin
+    Result.Kind := vkDate;
+    Result.FloatValue := Node.FloatValue;
+  end
   else if Abs(Node.FloatValue) > 1e-15 then
   begin
     Result.Kind := vkNumber;

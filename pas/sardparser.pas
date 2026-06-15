@@ -1093,6 +1093,14 @@ begin
         Result := Node;
         Advance;
       end;
+    tkDate:
+      begin
+        Node := NewNode(nkLiteral);
+        Node.IsDate := True;
+        Node.FloatValue := StrToInt64(FCurrent.Text);
+        Result := Node;
+        Advance;
+      end;
     tkIdentifier:
       begin
         if IsTypeName(FCurrent.Text) and (Peek.Kind = tkLParen) then

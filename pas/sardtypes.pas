@@ -13,7 +13,7 @@ type
   { Token kinds }
   TTokenKind = (
     tkEOF,
-    tkInteger, tkNumber, tkHex, tkString, tkColor, tkCurrency,
+    tkInteger, tkNumber, tkHex, tkString, tkColor, tkCurrency, tkDate,
     tkIdentifier,
     tkColon, tkSemicolon, tkComma, tkDot,
     tkAssign, tkTypeCheck,
@@ -59,6 +59,7 @@ type
     ColorValue: LongWord;
     CurrencyValue: Int64;
     BoolValue: Boolean;
+    IsDate: Boolean;
     Name: string;
     Op: string;
     Children: array of TASTNode;
@@ -171,9 +172,10 @@ begin
   FloatValue := 0;
   ColorValue := 0;
   CurrencyValue := 0;
-  BoolValue := False;
-  Name := '';
-  Op := '';
+   BoolValue := False;
+   IsDate := False;
+   Name := '';
+   Op := '';
     Typ := '';
     ReturnType := '';
     OpenParamIndex := -1;
@@ -215,9 +217,10 @@ begin
   Result.IntValue := IntValue;
   Result.FloatValue := FloatValue;
   Result.ColorValue := ColorValue;
-  Result.CurrencyValue := CurrencyValue;
-  Result.BoolValue := BoolValue;
-  Result.Name := Name;
+   Result.CurrencyValue := CurrencyValue;
+   Result.BoolValue := BoolValue;
+   Result.IsDate := IsDate;
+   Result.Name := Name;
   Result.Op := Op;
   Result.Typ := Typ;
   Result.ReturnType := ReturnType;

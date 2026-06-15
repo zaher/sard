@@ -254,6 +254,25 @@ micro = $0.000_001      // 0.000001
 
 **Precision:** Currency values support up to 6 decimal places. The lexer rejects literals with more than 6 fractional digits. Operations on currency values maintain precision by using 64-bit integer arithmetic internally.
 
+#### 2.4.8 Date Literals
+
+```
+date-literal         := "0t" date-digit ("_"? date-digit){7}
+
+date-digit           := [0-9]
+```
+
+Date literals represent a calendar date at midnight, stored internally as a `date` value (TDateTime). The literal begins with the prefix `0t` followed by exactly eight digits in `YYYYMMDD` order. Underscores may be inserted between digit groups for readability, e.g. `0t1971_10_19`.
+
+```sard
+d : date = 0t19711019       // 1971-10-19 00:00:00
+d = 0t1971_10_19            // same date with separators
+print(d)                    // 1971-10-19 00:00:00
+print(d == date)            // true
+```
+
+The lexer validates the date and raises an error for invalid dates such as `0t20211301` or `0t20210229` on non-leap years.
+
 ### 2.5 Identifiers
 
 ```
@@ -420,7 +439,7 @@ y : my_module.point;
 | `boolean` | Boolean value | `true`, `false` (built-in objects, not literals) |
 | `color` | RGB color value (DWORD 4 bytes) | `#ff0000` |
 | `currency` | Fixed-point decimal (64-bit, 6 fractional digits) | `$100`, `$99.99` |
-| `date` | Date/time value | `now()` |
+| `date` | Date/time value | `0t19711019`, `0t1971_10_19`, `now()` |
 | `array` | Ordered collection | `[1, 2, 3]` |
 | `object` | User-defined object | `~my_proto` |
 
@@ -485,6 +504,7 @@ literal              := integer-literal
                          | string-literal
                          | color-literal
                          | currency-literal
+                         | date-literal
 ```
 
 ### 4.2 Identifier Expressions
@@ -1882,22 +1902,28 @@ print(len(multiline))    // 11
 
 ### 9.6 Date and Time Functions
 
-The runtime provides two built-in callable objects for working with date and time:
+The runtime provides two built-in callable objects for working with date and time, plus date literals for fixed calendar dates:
 
 ```sard
 print(now())        // current date/time as a date value
 print(timestamp())  // current Unix timestamp as an integer
+print(0t19711019)   // 1971-10-19 00:00:00 as a date value
 ```
 
 **Behavior:**
 - `now()` returns the current date and time as a `date` value
 - `timestamp()` returns the current Unix timestamp (seconds since epoch) as an `integer`
+- Date literals (`0tYYYYMMDD` or `0tYYYY_MM_DD`) produce a `date` value at midnight UTC/local time
 
 Type checks work as expected:
 
 ```sard
-print(now() == date)       // true
-print(timestamp() == integer) // true
+print(now() == date)            // true
+print(timestamp() == integer)   // true
+print(0t1971_10_19 == date)     // true
+
+d : date = 0t1971_10_19
+print(d)                        // 1971-10-19 00:00:00
 ```
 
 ### 9.7 Extending the Language
@@ -2306,6 +2332,7 @@ literal              := integer-literal
                         | string-literal
                         | color-literal
                         | currency-literal
+                        | date-literal
 
 argument-list        := "(" (argument ("," argument)*)? ")"
 argument             := expression?

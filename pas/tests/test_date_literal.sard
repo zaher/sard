@@ -1,0 +1,7 @@
+print(0t19711019)
+print(0t1971_10_19)
+print(0t19711019 == date)
+print(0t1971_10_19 == date)
+d : date = 0t1971_10_19
+print(d)
+print(d == 0t19711019)
