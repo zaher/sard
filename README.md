@@ -1,19 +1,20 @@
 # Sard Script Language
 
-> A prototype-based, expression-oriented scripting language with gradual typing and financial calculations support.
+> A prototype-based, expression-oriented scripting language with gradual typing, financial calculations, and modern conveniences.
 
 ## Overview
 
-Sard is a modern scripting language designed for flexibility and precision. It combines the ease of dynamic typing with the safety of strict type enforcement when needed. Everything in Sard is an object — including variables, control structures, and even language constructs themselves.
+Sard is a small but expressive scripting language designed for clarity, flexibility, and precision. Everything in Sard is an object — variables, control structures, and even language constructs themselves are runtime objects. You can start with dynamic typing and add strict type annotations wherever you need safety.
 
 ### Key Characteristics
 
-- **Gradual Typing**: Use untyped variables for flexibility (`x = 10`) or typed variables for safety (`x : integer = 10`)
-- **Everything is an Object**: No functions, only callable objects; no reserved words, all constructs are runtime objects
+- **Gradual Typing**: Untyped variables for flexibility (`x = 10`) or typed variables for safety (`x : integer = 10`)
+- **Everything is an Object**: No functions, only callable objects; no reserved words beyond built-in type names
 - **Expression-Oriented**: Every block evaluates to a value; blocks are expressions, not just statements
 - **Unicode-Aware**: Full Unicode support in identifiers and strings
 - **Financial Precision**: Built-in `currency` type with 6 decimal places and accountant calculator mode
 - **No Global Scope**: Lexical parent-chain scoping
+- **Pascal-Style Casts**: Convert values with `integer(x)`, `number(x)`, `string(x)`, etc.
 
 ## Quick Start
 
@@ -31,6 +32,11 @@ count : integer = 10;
 count = 20;         // Valid - same type
 count = "30";       // Auto-cast to 30
 count = "test";     // Runtime error - invalid conversion
+
+// Numeric literals with digit separators
+population = 1_000_000;
+pi = 3.14_15_92;
+mask = 0xDE_AD_BE_EF;
 
 // Arithmetic with power operator
 area = 10 ^ 2;       // 100 (10 squared)
@@ -72,6 +78,10 @@ nums = [10, 20, 30];
 print(nums[0]);      // 10
 nums[1] = 99;
 
+// Array repetition and append
+zeros = [0] * 3;              // [0, 0, 0]
+nums = nums + [40, 50];       // append elements
+
 // Control flow
 score : integer = 85;
 
@@ -90,6 +100,18 @@ while (i < 5) {
     i++;
 }
 
+loop(3) {
+    print("hello");
+}
+
+loop(3, i) {
+    print(i);        // 0, 1, 2
+}
+
+for([10, 20, 30], v) {
+    print(v);
+}
+
 // Blocks as expressions
 result = {
     temp = x + y;
@@ -98,6 +120,11 @@ result = {
 
 // String concatenation with escapes
 greeting = "Hello" \n "World" \t "!";
+
+// Dates
+d : date = 0t1971_10_19;
+print(now);          // current date/time (parens optional)
+print(timestamp);    // current Unix timestamp
 ```
 
 ## Type System
@@ -108,7 +135,7 @@ Sard supports **gradual typing** — you choose between dynamic and static typin
 ```sard
 x = 10;          // x is integer
 x = "test";      // Valid - x becomes string
-x = 3.14;        // Valid - x becomes decimal
+x = 3.14;        // Valid - x becomes number
 ```
 
 ### Typed Variables (Strict)
@@ -124,11 +151,12 @@ y = "test";          // Runtime error!
 | Type | Description | Example |
 |------|-------------|---------|
 | `integer` | Signed integer | `42` |
-| `decimal` | Floating-point | `3.14` |
+| `number` | Floating-point | `3.14` |
 | `string` | Unicode string | `"hello"` |
 | `boolean` | Boolean value | `true`, `false` |
-| `color` | RGB (DWORD) | `#ff5733` |
+| `color` | RGB (DWORD) | `#ff5733`, `#fff` |
 | `currency` | Fixed-point 64-bit | `$99.99` |
+| `date` | Date/time value | `0t2024_01_15`, `now()` |
 | `array` | Ordered collection | `[1, 2, 3]` |
 | `object` | User-defined | `~proto` |
 
@@ -136,6 +164,16 @@ y = "test";          // Runtime error!
 ```sard
 is_int = (x == integer);     // Check if x is an integer
 is_str = (x == string);      // Check if x is a string
+```
+
+### Type Casting
+```sard
+i = integer(3.14);        // 3
+n = number("42");         // 42.0
+s = string(42);           // "42"
+b = boolean(1);           // true
+c = currency(3.14);       // 3.140000
+d = date(0);              // epoch date
 ```
 
 ## Operators
@@ -182,7 +220,7 @@ is_str = (x == string);      // Check if x is a string
 1. `^` (power) - right-associative
 2. `*`, `/`, `mod`
 3. `+`, `-`
-4. `=`, `<>`, `!=`, `<`, `>`, `<=`, `>=`
+4. `=`, `<>`, `!=`, `<`, `>`, `<=`, `>=` (chaining supported)
 5. `&`, `and`
 6. `\|`, `or`
 7. `==` (type comparison)
@@ -208,6 +246,27 @@ Fixed-point decimal with 6 fractional digits, stored as 64-bit integer:
 price = $100;           // 100.000000
 tax = $12.3456;        // 12.345600
 fraction = $0.000001;   // Smallest unit
+salary = $1_000_000;    // 1000000.000000
+```
+
+### Numeric Literals
+Numeric literals can use underscores as digit separators:
+
+```sard
+one_million = 1_000_000;
+pi = 3.14_15_92;
+hex = 0xDE_AD_BE_EF;
+red = #FF_57_33;
+price = $1_000.99;
+```
+
+### Color Shorthand
+Colors support 3-digit CSS-like shorthand:
+
+```sard
+white = #fff;          // #ffffff
+magenta = #f0f;        // #ff00ff
+grey = #abc;           // #aabbcc
 ```
 
 ### Object Construction
@@ -224,6 +283,72 @@ if (0 <= x < 100) {     // Equivalent to (0 <= x) and (x < 100)
 }
 ```
 
+## Callable Objects
+
+Callable parameters support type annotations, default values, open (variadic) parameters, and return type annotations:
+
+```sard
+// Simple callable
+add : (a, b) {
+    = a + b
+}
+
+// Typed parameters
+divide : number (a: number, b: number) {
+    = a / b
+}
+
+// Default values
+greet : (name: string, suffix: string = "!") {
+    = "Hello, " + name + suffix
+}
+
+// Open (variadic) parameters
+sum : (values...) {
+    result = 0
+    for(values, v) {
+        result += v
+    }
+    = result
+}
+
+print(sum(1, 2, 3, 4));   // 10
+```
+
+Parameterless callables can be invoked with or without parentheses:
+
+```sard
+greet : { = "Hello" }
+print(greet);       // "Hello"
+print(greet());     // "Hello"
+```
+
+## Arrays
+
+### Array Literals
+```sard
+nums = [10, 20, 30];
+mixed = [1, "hello", true];
+empty = [];
+```
+
+### Array Multiplication
+```sard
+zeros = [0] * 3;       // [0, 0, 0]
+ones = [1] * 5;        // [1, 1, 1, 1, 1]
+pairs = [1, 2] * 3;    // [1, 2, 1, 2, 1, 2]
+```
+
+### Array Addition
+```sard
+arr = []
+arr = arr + [10];      // [10]
+arr += [20];           // [10, 20]
+arr = arr + [30, 40];  // [10, 20, 30, 40]
+```
+
+Array addition creates a new array; the original is not modified.
+
 ## Object Model
 
 ### Prototype-Based
@@ -232,12 +357,12 @@ Objects inherit from prototypes via parent chain:
 ```sard
 bank_account : {
     balance : currency = $0;
-    
+
     deposit : (amount) {
         balance = balance + amount;
         = balance;
     };
-    
+
     withdraw : (amount) {
         if (amount <= balance) {
             balance = balance - amount;
@@ -246,7 +371,7 @@ bank_account : {
             = false;
         }
     };
-    
+
     get_balance : () {
         = balance;
     };
@@ -300,6 +425,63 @@ while {
 }
 ```
 
+### Loop
+```sard
+// Repeat a fixed number of times
+loop(5) {
+    print("hello");
+}
+
+// With an index variable
+loop(3, i) {
+    print(i);        // 0, 1, 2
+}
+
+// Endless loop
+loop {
+    // loop forever until break
+}
+```
+
+### For
+```sard
+// Iterate over an array
+for([10, 20, 30], v) {
+    print(v);
+}
+
+// Iterate over a string
+for("hello", c) {
+    print(c);
+}
+
+// Sum elements
+sum = 0
+for([1, 2, 3, 4, 5], v) {
+    sum += v
+}
+print(sum);          // 15
+```
+
+## Built-ins
+
+| Object | Description |
+|--------|-------------|
+| `print` | Print arguments to output |
+| `len` | Length of array or string |
+| `now` | Current date/time as `date` |
+| `timestamp` | Current Unix timestamp as `integer` |
+| `if` / `while` / `loop` / `for` | Control flow constructs |
+| `break` | Exit loop or block (provided by runtime/addons) |
+
+```sard
+arr = [10, 20, 30];
+print(len(arr));       // 3
+print(len("hello"));   // 5
+print(now);            // current date/time
+print(timestamp);      // current Unix timestamp
+```
+
 ## Comments
 
 ```sard
@@ -309,11 +491,6 @@ while {
  * Multi-line comment
  * (does not nest)
  */
-
-{*
-   Block comment
-   Can nest: {* nested *}
-*}
 ```
 
 ## Examples
@@ -335,12 +512,12 @@ print(fib(10));  // 55
 ```sard
 account : {
     balance : currency = $0;
-    
+
     deposit : (amount : currency) {
         balance = balance + amount;
         = balance;
     };
-    
+
     apply_interest : (rate) {
         interest = balance * rate;
         balance = balance + interest;
@@ -360,10 +537,8 @@ numbers = [10, 20, 30, 40, 50];
 
 // Sum all elements
 sum = 0;
-i = 0;
-while (i < 5) {
-    sum = sum + numbers[i];
-    i++;
+for(numbers, v) {
+    sum += v;
 }
 print(sum);  // 150
 ```
@@ -374,7 +549,7 @@ print(sum);  // 150
 2. **Flexibility**: Choose dynamic or static typing as needed
 3. **Precision**: Built-in support for financial calculations
 4. **Extensibility**: All constructs can be overridden or extended
-5. **Clarity**: No reserved words; symbols have fixed meanings
+5. **Clarity**: Minimal reserved words; symbols have fixed meanings
 
 ## Implementation Notes
 
