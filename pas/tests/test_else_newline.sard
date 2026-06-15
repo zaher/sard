@@ -1,0 +1,9 @@
+score = 80
+if (score >= 90)
+{
+    print("yes");
+}
+else
+{
+    print("no");
+}

@@ -963,6 +963,8 @@ begin
           begin
             Saved := FCurrent;
             Advance;
+            { allow newline between named block keyword (e.g. else) and its block }
+            while FCurrent.Kind = tkNewLine do Advance;
             if FCurrent.Kind = tkLBrace then
             begin
               BlockNode := ParseBlock();
@@ -1022,6 +1024,8 @@ begin
           { named block }
           Saved := FCurrent;
           Advance;
+          { allow newline between named block keyword (e.g. else) and its block }
+          while FCurrent.Kind = tkNewLine do Advance;
           if FCurrent.Kind = tkLBrace then
           begin
             BlockNode := ParseBlock();

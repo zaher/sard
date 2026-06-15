@@ -708,9 +708,9 @@ Functions are callable objects. They can accept:
 **Postfix Chain Rules:**
 - `postfix-access` (member/index) and `postfix-call` (argument list with optional block, or named block) are non-terminal links — further postfix operations may follow.
 - `postfix-final` (`%`, `++`, `--`) are **terminal operations** — no further postfix links may follow them.
-- `block` as a postfix link is non-terminal if followed by a named block continuation (e.g., `else`).
+- `block` as a postfix link is non-terminal if followed by a named block continuation (e.g., `else`). Newlines between the closing `}` and the continuation keyword are ignored.
 - At most one `argument-list` is allowed per postfix chain (no call chaining like `func()()`).
-- Named blocks can only follow an `argument-list`, an anonymous `block`, or another named block (enforced semantically, not by EBNF).
+- Named blocks can only follow an `argument-list`, an anonymous `block`, or another named block (enforced semantically, not by EBNF). The named block keyword and its opening `{` may be separated by newlines.
 
 **Calling with No Arguments:** Callable objects with no arguments can be called with or without parentheses, like in Pascal. When a parameterless callable is used as a value, it is automatically invoked. Parentheses are therefore optional for parameterless callables, both in statements and in expressions.
 
@@ -736,10 +736,11 @@ A callable is only auto-invoked when it is used as a value. When it appears as t
 **Block Rules:**
 - Anonymous blocks are permitted directly after a callable expression: `func { body }` passes the block as an argument to the callable
 - Named blocks can have an optional argument list: `myname { }` or `myname(n) { }`
-- Named blocks are only valid when they immediately follow:
+- Named blocks are only valid when they follow:
   - An argument list: `if (cond) { ... } else { ... }`
   - An anonymous block (which follows an argument list): `if (cond) { ... } else { ... }`
   - Another named block (chaining)
+- Newlines are ignored around named block keywords: they may appear before the keyword (after the previous block's `}`) and between the keyword and its opening `{`.
 
 **No Call Chaining:** Call expressions cannot be chained. The following are invalid:
 ```sard
@@ -771,6 +772,16 @@ if (x > 0) {
 } else {
     print("non-positive");
 };
+
+// `else` (and its opening brace) may start on a new line
+if (score >= 90)
+{
+    print("yes");
+}
+else
+{
+    print("no");
+}
 ```
 
 ### 4.8 Array Literals
@@ -1314,7 +1325,7 @@ block-statement      := block
 
 A block used as a statement creates a new scope but does not automatically capture its return value unless assigned.
 
-**Block Termination Rule:** A `}` normally terminates the statement in which it appears. Statements ending with a block do not require an explicit semicolon. However, when `}` is immediately followed by a continuation token (like `else`), parsing continues to form multi-block constructs (e.g., `if ... else`). In this case, the block boundary is recognized but the outer statement does not terminate until the last block closes.
+**Block Termination Rule:** A `}` normally terminates the statement in which it appears. Statements ending with a block do not require an explicit semicolon. However, when `}` is followed by a continuation token (like `else`) — possibly after intervening newlines — parsing continues to form multi-block constructs (e.g., `if ... else`). In this case, the block boundary is recognized but the outer statement does not terminate until the last block closes.
 
 ```sard
 {
