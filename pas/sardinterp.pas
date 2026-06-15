@@ -908,6 +908,13 @@ begin
             LazyCond.LazyNode := ArgNodes[I];
             Args[I] := LazyCond;
           end
+          else if (BuiltinName = 'loop') and (I = 1) then
+          begin
+            LazyCond := NewValue;
+            LazyCond.Kind := vkLazy;
+            LazyCond.LazyNode := ArgNodes[I];
+            Args[I] := LazyCond;
+          end
           else
             Args[I] := EvalExpression(ArgNodes[I], Scope);
         end;
@@ -2193,17 +2200,21 @@ end;
 function TInterpreter.BuiltInLoop(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   Count: Int64;
+  CountKnown: Boolean;
   I: Integer;
   BlockNode: TASTNode;
   BodyBlock: TASTNode;
   NewScopeObj: TSardValue;
   SavedReturn: TSardValue;
   SavedHasReturn: Boolean;
-  Ret: TSardValue;
   LoopDepth: Integer;
   BodyResult: TSardValue;
   CountObj: TSardValue;
   Coerced: TSardValue;
+  IndexValue: TSardValue;
+  VarName: string;
+  HaveVarName: Boolean;
+  Iteration: Int64;
 begin
   BodyBlock := nil;
   if Blocks <> nil then
@@ -2216,12 +2227,16 @@ begin
     end;
   end;
 
-  { Determine count; default to 0 if not supplied }
+  { Determine count. When no argument is supplied (loop { ... } or loop() { ... })
+    the loop runs forever. A supplied count of 0 or negative still skips the body. }
+  CountKnown := False;
   Count := 0;
+  HaveVarName := False;
+  VarName := '';
   if Length(Args) > 0 then
   begin
     CountObj := Args[0];
-    if CountObj <> nil then
+    if (CountObj <> nil) and (CountObj.Kind <> vkNull) then
     begin
       if CountObj.Kind = vkInteger then
         Count := CountObj.IntValue
@@ -2238,46 +2253,102 @@ begin
       end
       else
         raise ESardError.CreateFmt('loop count must be an integer, got %s', [CountObj.KindName]);
+      CountKnown := True;
     end;
+  end;
+
+  { Optional second argument: an identifier that names the loop index variable. }
+  if Length(Args) > 1 then
+  begin
+    if (Args[1] <> nil) and (Args[1].Kind = vkLazy) and
+       (Args[1].LazyNode <> nil) and (Args[1].LazyNode.Kind = nkIdentifier) then
+    begin
+      VarName := LowerName(Args[1].LazyNode.Name);
+      HaveVarName := True;
+    end
+    else
+      raise ESardError.Create('loop second argument must be a variable name');
   end;
 
   Result := NewValue;
   Result.Kind := vkNull;
 
-  if Count <= 0 then Exit;
   if BodyBlock = nil then Exit;
 
   Inc(FBreakDepth);
   LoopDepth := FBreakDepth;
   try
-    for I := 1 to Count do
+    if not CountKnown then
     begin
-      NewScopeObj := NewScope(Scope);
-      SavedReturn := FReturnValue;
-      SavedHasReturn := FHasReturn;
-      FReturnValue := nil;
-      FHasReturn := False;
-      BodyResult := nil;
-      try
-        BodyResult := EvalStatements(BodyBlock, NewScopeObj);
-        if BodyResult <> nil then BodyResult.AddRef;
-      finally
-        NewScopeObj.Release;
-        if FReturnValue <> nil then FReturnValue.Release;
-        FReturnValue := SavedReturn;
-        FHasReturn := SavedHasReturn;
-      end;
-      if BodyResult <> nil then
+      while True do
       begin
-        Result.Release;
-        Result := BodyResult;
+        NewScopeObj := NewScope(Scope);
+        SavedReturn := FReturnValue;
+        SavedHasReturn := FHasReturn;
+        FReturnValue := nil;
+        FHasReturn := False;
+        BodyResult := nil;
+        try
+          BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+          if BodyResult <> nil then BodyResult.AddRef;
+        finally
+          NewScopeObj.Release;
+          if FReturnValue <> nil then FReturnValue.Release;
+          FReturnValue := SavedReturn;
+          FHasReturn := SavedHasReturn;
+        end;
+        if BodyResult <> nil then
+        begin
+          Result.Release;
+          Result := BodyResult;
+        end;
+        if FBreakDepth < LoopDepth then
+        begin
+          FBreakDepth := LoopDepth;
+          Break;
+        end;
+        if FHasReturn then Break;
       end;
-      if FBreakDepth < LoopDepth then
+    end
+    else
+    begin
+      for Iteration := 0 to Count - 1 do
       begin
-        FBreakDepth := LoopDepth;
-        Break;
+        NewScopeObj := NewScope(Scope);
+        if HaveVarName then
+        begin
+          IndexValue := NewValue;
+          IndexValue.Kind := vkInteger;
+          IndexValue.IntValue := Iteration;
+          NewScopeObj.SetMember(VarName, IndexValue);
+          IndexValue.Release;
+        end;
+        SavedReturn := FReturnValue;
+        SavedHasReturn := FHasReturn;
+        FReturnValue := nil;
+        FHasReturn := False;
+        BodyResult := nil;
+        try
+          BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+          if BodyResult <> nil then BodyResult.AddRef;
+        finally
+          NewScopeObj.Release;
+          if FReturnValue <> nil then FReturnValue.Release;
+          FReturnValue := SavedReturn;
+          FHasReturn := SavedHasReturn;
+        end;
+        if BodyResult <> nil then
+        begin
+          Result.Release;
+          Result := BodyResult;
+        end;
+        if FBreakDepth < LoopDepth then
+        begin
+          FBreakDepth := LoopDepth;
+          Break;
+        end;
+        if FHasReturn then Break;
       end;
-      if FHasReturn then Break;
     end;
   finally
     if FBreakDepth >= LoopDepth then

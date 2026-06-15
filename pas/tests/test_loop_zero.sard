@@ -1,0 +1,4 @@
+loop(0) {
+    print("should not print")
+}
+print("done")

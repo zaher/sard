@@ -1486,7 +1486,7 @@ The following are callable objects provided by the runtime:
 | `print` | Prints arguments to output |
 | `if` | Conditional execution |
 | `while` | Conditional loop construct |
-| `loop` | Counted loop construct |
+| `loop` | Counted or endless loop construct |
 | `for` | Iterate over array or string elements |
 | `else` | Used with `if` for alternative branch |
 | `negate` | Numeric negation (callable version) |
@@ -1695,7 +1695,7 @@ while (x < 10) {
 
 #### `loop`
 
-`loop` is a built-in callable object that repeats a body block a fixed number of times. It accepts a single integer argument and an anonymous body block.
+`loop` is a built-in callable object that repeats a body block. It can run a fixed number of times, or it can run forever until a `break` is encountered.
 
 ```sard
 // Repeat 5 times
@@ -1710,23 +1710,40 @@ loop(5) {
 loop(count) {
     body
 }
+
+loop(count, indexVar) {
+    body
+}
+
+loop {
+    body
+}
+
+loop() {
+    body
+}
 ```
 
-- `count` — an expression that evaluates to an integer; specifies how many times to execute the body
-- `body` — an anonymous block executed once per iteration
+- `count` — an expression that evaluates to an integer; specifies how many times to execute the body. When omitted (by writing `loop { ... }` or `loop() { ... }`), the loop runs forever.
+- `indexVar` — an identifier that names an optional loop variable. In each iteration it is bound to the current zero-based index (`0`, `1`, … `count-1`).
+- `body` — an anonymous block executed once per iteration.
 
 **Behavior:**
-- The count expression is evaluated once, before the first iteration.
-- The body block is executed exactly that many times.
-- A negative or zero count causes the body to be skipped.
+- The `count` expression is evaluated once, before the first iteration.
+- With a count, the body block is executed exactly that many times. A negative or zero count causes the body to be skipped.
+- Without a count (`loop { ... }` or `loop() { ... }`), the loop runs endlessly until `break` is called.
 - `break` can be used to exit the loop early.
 
 ```sard
 // Count up with loop
-i = 0
 loop(3) {
+    print("hello")
+}
+// Output: hello, hello, hello
+
+// Loop with an index variable
+loop(3, i) {
     print(i)
-    i += 1
 }
 // Output: 0, 1, 2
 
@@ -1736,14 +1753,23 @@ loop(n) {
     print("tick")
 }
 
-// Loop with break
-loop(10) {
+// Endless loop with explicit break
+i = 0
+loop {
     print(i)
-    if (i = 2) {
+    i += 1
+    if (i = 3) {
         break
     }
-    i += 1
 }
+// Output: 0, 1, 2
+
+// Empty parentheses are equivalent to no argument
+loop() {
+    print("once")
+    break
+}
+// Output: once
 ```
 
 **Note:** `loop` is an ordinary built-in callable object, not a reserved word. It can be shadowed by local declarations or passed around like any other callable.
