@@ -15,7 +15,7 @@
 * constructors, destructors
 
 * Math functions
-    Abs, Min, Max, Sin, Cos, Tan
+    Round, Abs, Min, Max, Sin, Cos, Tan
 * Date
     Now, Time, Timestamp, Clock, Format
 
