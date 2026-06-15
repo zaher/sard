@@ -948,11 +948,30 @@ price = 100 * 20%;     // OK: percent at end of expression, no further postfix l
 ### 5.1 Declaration Statement
 
 ```
-declaration          := identifier ":" type ("=" expression)? statement-term?
-                       | identifier ":" type? parameter-list? block? statement-term?
+declaration          := identifier ":" declaration-body statement-term?
+
+declaration-body     := type ("=" expression)?
+                       | type? (newline* parameter-list)? newline* block?
 ```
 
 Introduces a new variable or callable object. The semicolon is optional at end of line.
+
+**Newlines in Declarations:** Newlines normally terminate statements, but in a declaration they are ignored when they appear immediately before a parameter list or a block. This allows callable declarations to span lines naturally:
+
+```sard
+object1:
+{
+    print("Hi1")
+}
+
+add:
+(a, b)
+{
+    = a + b
+}
+```
+
+A newline before `=` does **not** continue a variable declaration; it terminates the declaration. Use `name : type = value` on one line (or only split after the `=`).
 
 **Forms:**
 - `name : type` — declares a variable with type annotation (strictly typed)
@@ -962,6 +981,7 @@ Introduces a new variable or callable object. The semicolon is optional at end o
 - `name : type { ... }` — declares a callable with return type and no parameters
 - `name : type (params) { ... }` — declares a callable with return type and parameters
 - `name : (params)` — declares a callable signature (parameters only, no body); serves as a forward declaration or abstract interface
+- The above forms also work when a newline appears before `{` or before `(`
 
 **Parameters:**
 
@@ -2103,11 +2123,14 @@ block-statement      := block
 
 empty-statement      := (";" | newline)+
 
-declaration          := identifier ":" type ("=" expression)? statement-term?
-                        | identifier ":" type? parameter-list? block? statement-term?
+declaration          := identifier ":" declaration-body statement-term?
+
+declaration-body     := type ("=" expression)?
+                        | type? (newline* parameter-list)? newline* block?
                        (* Note: parameter-list is optional for parameterless callable declarations.
                         * When block is absent, this declares a callable signature (parameters only)
-                        * that can be defined later or serves as a forward declaration. *)
+                        * that can be defined later or serves as a forward declaration.
+                        * Newlines are ignored before a parameter list or block in callable declarations. *)
 
 type                 := identifier ("." identifier)*
 

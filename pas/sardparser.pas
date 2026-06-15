@@ -48,6 +48,7 @@ type
     function NewIdent(const V: string): TASTNode;
     function CloneLValue(Node: TASTNode): TASTNode;
     function IsTypeName(const Name: string): Boolean;
+    procedure SkipNewlinesBeforeContinuation;
   public
     constructor Create(Lexer: TLexer);
     function ParseProgram: TASTNode;
@@ -165,6 +166,26 @@ begin
             (N = 'color') or (N = 'currency') or (N = 'array') or (N = 'object');
 end;
 
+procedure TParser.SkipNewlinesBeforeContinuation;
+var
+  Saved: TToken;
+begin
+  { Newlines normally terminate statements. In contexts where a block or
+    parameter list is expected (e.g. after ':' in a declaration), skip newlines
+    but only if the next meaningful token actually continues the construct. }
+  if FCurrent.Kind = tkNewLine then
+  begin
+    Saved := FCurrent;
+    while FCurrent.Kind = tkNewLine do Advance;
+    if not ((FCurrent.Kind = tkLBrace) or (FCurrent.Kind = tkLParen)) then
+    begin
+      FLookahead := FCurrent;
+      FHasLookahead := True;
+      FCurrent := Saved;
+    end;
+  end;
+end;
+
 function TParser.ParseProgram: TASTNode;
 var
   Stmt: TASTNode;
@@ -206,6 +227,7 @@ var
   Count: Integer;
 begin
   Result := nil;
+  OpenIndex := -1;
 
   { Empty statement }
   if FCurrent.Kind = tkSemicolon then begin Advance; Exit(nil); end;
@@ -265,6 +287,7 @@ begin
     SetLength(ParamNames, 0);
     SetLength(ParamTypes, 0);
     RetType := '';
+    SkipNewlinesBeforeContinuation;
 
     { Callable declaration with no type/params: name : { ... } }
     if FCurrent.Kind = tkLBrace then
@@ -293,6 +316,7 @@ begin
       SetLength(Result.ParamOpen, Length(ParamNames));
       if OpenIndex >= 0 then
         Result.ParamOpen[OpenIndex] := True;
+      SkipNewlinesBeforeContinuation;
       if FCurrent.Kind = tkLBrace then
         Result.AddChild(ParseBlock);
       ParseStatementTerm;
@@ -304,6 +328,7 @@ begin
       raise MakeError('Expected type or parameter list after :');
     TypeName := FCurrent.Text;
     Advance;
+    SkipNewlinesBeforeContinuation;
 
     { Callable with return type and (optional) params: name : type { } or name : type (params) { } }
     if (FCurrent.Kind = tkLBrace) or (FCurrent.Kind = tkLParen) then
@@ -326,6 +351,7 @@ begin
       SetLength(Result.ParamOpen, Length(ParamNames));
       if OpenIndex >= 0 then
         Result.ParamOpen[OpenIndex] := True;
+      SkipNewlinesBeforeContinuation;
       if FCurrent.Kind = tkLBrace then
         Result.AddChild(ParseBlock);
       ParseStatementTerm;
