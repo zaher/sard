@@ -15,4 +15,4 @@
 * Math functions
     Abs, Min, Max, Sin, Cos, Tan
 * Date
-    Now, Time, Timestamp, GetTicks
+    Now, Time, Timestamp, Clock

@@ -3,7 +3,7 @@ unit SardConsole;
 interface
 
 uses
-  System.SysUtils, Classes, SardTypes, SardLexer, SardParser, SardInterp;
+  SysUtils, Classes, SardTypes, SardLexer, SardParser, SardInterp;
 
 procedure RunConsole;
 
