@@ -15,6 +15,7 @@ Sard is a small but expressive scripting language designed for clarity, flexibil
 - **Financial Precision**: Built-in `currency` type with 6 decimal places and accountant calculator mode
 - **No Global Scope**: Lexical parent-chain scoping
 - **Pascal-Style Casts**: Convert values with `integer(x)`, `number(x)`, `string(x)`, etc.
+- **Date format**: d = 0t2026_10_20
 
 ## Quick Start
 
@@ -23,9 +24,9 @@ Sard is a small but expressive scripting language designed for clarity, flexibil
 print("Hello, World!");
 
 // Variables - untyped (dynamic)
-name = "Sard";
-version = 1.0;
-name = 42;          // Valid - can change types
+name = "Sard"
+version = 1.0
+name = 42           // Valid - can change types
 
 // Variables - typed (strict)
 count : integer = 10;
@@ -83,14 +84,17 @@ zeros = [0] * 3;              // [0, 0, 0]
 nums = nums + [40, 50];       // append elements
 
 // Control flow
+// There is no `else if`
 score : integer = 85;
 
 if (score >= 90) {
     print("Grade: A");
-} else if (score >= 80) {
-    print("Grade: B");
 } else {
-    print("Grade: C or lower");
+    if (score >= 80) {
+        print("Grade: B");
+    } else {
+        print("Grade: C or lower");
+    }
 };
 
 // Loops
