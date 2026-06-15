@@ -1,6 +1,8 @@
-unit SardInterp;
+﻿unit SardInterp;
 
+{$ifdef FPC}
 {$mode objfpc}{$H+}
+{$endif}
 
 interface
 
@@ -1518,8 +1520,8 @@ begin
   IsCurr := (Left.Kind = vkCurrency) or (Right.Kind = vkCurrency);
   if IsCurr then
   begin
-    if Left.Kind = vkCurrency then CV1 := Left.CurrencyValue else CV1 := Round(Left.IntValue * 1000000);
-    if Right.Kind = vkCurrency then CV2 := Right.CurrencyValue else CV2 := Round(Right.IntValue * 1000000);
+    if Left.Kind = vkCurrency then CV1 := Left.CurrencyValue else CV1 := Left.IntValue * 1000000;
+    if Right.Kind = vkCurrency then CV2 := Right.CurrencyValue else CV2 := Right.IntValue * 1000000;
     Result.Kind := vkCurrency;
     if Op = '+' then Result.CurrencyValue := CV1 + CV2
     else if Op = '-' then Result.CurrencyValue := CV1 - CV2
@@ -2232,8 +2234,8 @@ begin
     end;
   end;
 
-  { Determine count. When no argument is supplied (loop { ... } or loop() { ... })
-    the loop runs forever. A supplied count of 0 or negative still skips the body. }
+  // Determine count. When no argument is supplied (loop { ... } or loop() { ... })
+  //  the loop runs forever. A supplied count of 0 or negative still skips the body. 
   CountKnown := False;
   Count := 0;
   HaveVarName := False;

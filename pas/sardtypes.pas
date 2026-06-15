@@ -1,13 +1,19 @@
 unit SardTypes;
 
+{$ifdef FPC}
 {$mode objfpc}{$H+}
+{$endif}
 
 interface
 
 uses
-  SysUtils, Classes, Contnrs;
+  SysUtils, Classes, Contnrs, RTTI;
 
 type
+  {$ifndef FPC}
+  TStringArray = Array of string;
+  {$endif}
+
   ESardError = class(Exception);
 
   { Token kinds }
@@ -65,9 +71,9 @@ type
     Children: array of TASTNode;
     Left, Right: TASTNode;
     Typ: string;
-    Params: array of string;
-    ParamTypes: array of string;
-    ParamDefaults: array of TASTNode;
+    Params: TStringArray;
+    ParamTypes: TStringArray;
+    ParamDefaults: TASTNodeArray;
     ParamOpen: array of Boolean;
     OpenParamIndex: Integer;
     ReturnType: string;
@@ -132,6 +138,9 @@ function TryHexToLongWord(const S: string; out Value: LongWord): Boolean;
 function IsSpaceChar(C: Char): Boolean;
 function KindToString(K: TTokenKind): string;
 procedure DumpAST(Node: TASTNode; Indent: Integer);
+{$ifndef FPC}
+function BoolToStr(B: boolean; const TrueStr, FalseStr: string): string;
+{$endif}
 
 implementation
 
@@ -155,8 +164,19 @@ end;
 
 function KindToString(K: TTokenKind): string;
 begin
+  {$ifdef FPC}  
   Str(K, Result);
+  {$else}
+  Result := TRttiEnumerationType.GetName<TTokenKind>(K)
+  {$endif}  
 end;
+
+{$ifndef FPC}
+function BoolToStr(B: boolean; const TrueStr, FalseStr: string): string;
+begin
+  if B then Result := TrueStr else Result := FalseStr;
+end;
+{$endif}
 
 { TASTNode }
 

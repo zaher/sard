@@ -1,11 +1,13 @@
 unit SardParser;
 
+{$ifdef FPC}
 {$mode objfpc}{$H+}
+{$endif}
 
 interface
 
 uses
-  SysUtils, SardTypes, SardLexer;
+  SysUtils, Classes, SardTypes, SardLexer;
 
 type
   TParser = class
@@ -289,7 +291,7 @@ begin
     RetType := '';
     SkipNewlinesBeforeContinuation;
 
-    { Callable declaration with no type/params: name : { ... } }
+    // Callable declaration with no type/params: name : { ... } 
     if FCurrent.Kind = tkLBrace then
     begin
       BlockNode := ParseBlock();
@@ -330,7 +332,7 @@ begin
     Advance;
     SkipNewlinesBeforeContinuation;
 
-    { Callable with return type and (optional) params: name : type { } or name : type (params) { } }
+    // Callable with return type and (optional) params: name : type { } or name : type (params) { } }
     if (FCurrent.Kind = tkLBrace) or (FCurrent.Kind = tkLParen) then
     begin
       RetType := TypeName;
