@@ -41,7 +41,7 @@ type
   { Runtime value kinds }
   TValueKind = (
     vkNull, vkInteger, vkNumber, vkString, vkBoolean,
-    vkColor, vkCurrency, vkArray, vkObject, vkLazy
+    vkColor, vkCurrency, vkDate, vkArray, vkObject, vkLazy
   );
 
   TASTNode = class;
@@ -235,6 +235,7 @@ begin
   for I := 0 to High(ParamOpen) do
     Result.ParamOpen[I] := ParamOpen[I];
   Result.OpenParamIndex := OpenParamIndex;
+  Result.HasParamList := HasParamList;
   if Left <> nil then Result.Left := Left.DeepClone;
   if Right <> nil then Result.Right := Right.DeepClone;
   SetLength(Result.Children, Length(Children));
@@ -472,6 +473,7 @@ begin
     vkBoolean: Result := 'boolean';
     vkColor: Result := 'color';
     vkCurrency: Result := 'currency';
+    vkDate: Result := 'date';
     vkArray: Result := 'array';
     vkObject: Result := 'object';
     vkLazy: Result := 'lazy';
@@ -500,6 +502,7 @@ begin
     vkBoolean: Result := BoolToStr(BoolValue, 'true', 'false');
     vkColor: Result := '#' + IntToHex(ColorValue, 6);
     vkCurrency: Result := FormatFloat('0.000000', CurrencyValue / 1000000);
+    vkDate: Result := FormatDateTime('yyyy-mm-dd hh:nn:ss', FloatValue);
     vkArray:
       begin
         S := '[';

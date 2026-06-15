@@ -16,7 +16,7 @@ Key characteristics:
 - **No global scope** — lexical parent-chain scoping
 - **Blocks are expressions** — every block evaluates to a value
 - **Assignment (`=`) is a statement-level construct**; in expression contexts, `=` is equality comparison
-- Reserved words are limited to `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `array`, `object`). Built-in constructs (`if`, `while`, etc.) are ordinary objects in the root scope and can be overridden or extended via addons
+- Reserved words are limited to `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `date`, `array`, `object`). Built-in constructs (`if`, `while`, etc.) are ordinary objects in the root scope and can be overridden or extended via addons
 - **Extensible named operators** — `mod`, `and`, `or`, `not` are recognized as special tokens by the lexer, but their behavior is provided by operator handler objects that can be overridden or extended via addons. These can be shadowed by local declarations like any other identifier.
 
 ### Implementation Notes
@@ -277,7 +277,7 @@ identifier-continue  := identifier-start | digit
 
 **Rules:**
 - Identifiers are case-insensitive internally (stored in lowercase)
-- Reserved words: `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `array`, `object`)
+- Reserved words: `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `date`, `array`, `object`)
 - Words like `if`, `while` are **built-in root-scope objects**, not keywords. They can be shadowed by local declarations or replaced via addons, though this is not recommended for readability.
 - Named operators (`mod`, `and`, `or`, `not`) are **operator handler objects** that can be defined, overridden, or extended via addons to provide custom behavior.
 
@@ -420,6 +420,7 @@ y : my_module.point;
 | `boolean` | Boolean value | `true`, `false` (built-in objects, not literals) |
 | `color` | RGB color value (DWORD 4 bytes) | `#ff0000` |
 | `currency` | Fixed-point decimal (64-bit, 6 fractional digits) | `$100`, `$99.99` |
+| `date` | Date/time value | `now()` |
 | `array` | Ordered collection | `[1, 2, 3]` |
 | `object` | User-defined object | `~my_proto` |
 
@@ -431,7 +432,7 @@ Sard supports **Pascal-style type casting** using built-in type names as cast op
 type-cast            := type-name "(" expression ")"
 
 type-name            := "integer" | "number" | "string" | "boolean"
-                        | "color" | "currency" | "array" | "object"
+                        | "color" | "currency" | "date" | "array" | "object"
 ```
 
 A type-cast expression converts the value of the inner expression to the named type. Type casts are parsed as **primary expressions** and can appear anywhere a primary expression is allowed, including nested casts and arbitrary expressions.
@@ -691,17 +692,26 @@ Functions are callable objects. They can accept:
 - At most one `argument-list` is allowed per postfix chain (no call chaining like `func()()`).
 - Named blocks can only follow an `argument-list`, an anonymous `block`, or another named block (enforced semantically, not by EBNF).
 
-**Calling with No Arguments:** Callable objects with no arguments can be called without parentheses by using just the identifier name. This is a semantic rule: when an identifier expression used as a statement resolves to a callable object, it is implicitly invoked.
+**Calling with No Arguments:** Callable objects with no arguments can be called with or without parentheses, like in Pascal. When a parameterless callable is used as a value, it is automatically invoked. Parentheses are therefore optional for parameterless callables, both in statements and in expressions.
 
 ```
-implicit-call        := identifier    (* resolved to callable → implicit invocation *)
+implicit-call        := identifier    (* resolved to parameterless callable → implicit invocation *)
 ```
 
 ```sard
 // Both are valid for parameterless callables:
 greet;        // Call without parentheses (natural syntax, implicit invocation)
 greet();      // Call with empty parentheses (also valid)
+
+// In expressions, the callable is also invoked automatically:
+message = greet           // message = "Hello"
+print(greet)              // prints the result of calling greet
+
+// Member access uses the object itself, so the callable is not invoked:
+print(greet.length)       // access a member of the greet object, if any
 ```
+
+A callable is only auto-invoked when it is used as a value. When it appears as the base of a member access (`obj.member`) or index access (`arr[i]`), it is treated as the underlying object so that members and elements can be reached.
 
 **Block Rules:**
 - Anonymous blocks are permitted directly after a callable expression: `func { body }` passes the block as an argument to the callable
@@ -1482,8 +1492,10 @@ The following are callable objects provided by the runtime:
 | `negate` | Numeric negation (callable version) |
 | `break` | Exits from loop or block (runtime-defined via addons, not reserved) |
 | `len` | Returns the length of an array or string |
+| `now` | Returns the current date/time as a `date` value |
+| `timestamp` | Returns the current Unix timestamp as an `integer` |
 
-**Note on `else`:** `else` serves a dual role. Syntactically, `else { ... }` is parsed as a **named block** that is passed by name to the preceding callable (e.g., `if`, `while`). At the same time, `else` exists as a built-in callable object in the root scope, which is the default handler that `if` and `while` delegate to when evaluating the alternate branch. Overriding the `else` object changes the behavior of `else` blocks across all constructs.
+**Note on `else`**: `else` serves a dual role. Syntactically, `else { ... }` is parsed as a **named block** that is passed by name to the preceding callable (e.g., `if`, `while`). At the same time, `else` exists as a built-in callable object in the root scope, which is the default handler that `if` and `while` delegate to when evaluating the alternate branch. Overriding the `else` object changes the behavior of `else` blocks across all constructs.
 
 **Note:** `break` is not a reserved word and is not built into the core language. It is declared at runtime by addons and can be shadowed by local declarations or replaced with custom implementations.
 
@@ -1842,7 +1854,27 @@ print(len(multiline))    // 11
 - `len(string)` returns the string length (in characters) as an `integer`
 - Passing any other type raises a runtime error
 
-### 9.6 Extending the Language
+### 9.6 Date and Time Functions
+
+The runtime provides two built-in callable objects for working with date and time:
+
+```sard
+print(now())        // current date/time as a date value
+print(timestamp())  // current Unix timestamp as an integer
+```
+
+**Behavior:**
+- `now()` returns the current date and time as a `date` value
+- `timestamp()` returns the current Unix timestamp (seconds since epoch) as an `integer`
+
+Type checks work as expected:
+
+```sard
+print(now() == date)       // true
+print(timestamp() == integer) // true
+```
+
+### 9.7 Extending the Language
 
 Sard supports extensibility through callable objects and addons:
 
@@ -2240,7 +2272,7 @@ primary              := literal
 type-cast            := type-name "(" expression ")"
 
 type-name            := "integer" | "number" | "string" | "boolean"
-                        | "color" | "currency" | "array" | "object"
+                        | "color" | "currency" | "date" | "array" | "object"
 
 literal              := integer-literal
                         | number-literal

@@ -1,0 +1,17 @@
+greet : { = "Hello" }
+print(greet)
+print(greet())
+
+counter : {
+    value : integer = 0
+    next : () {
+        value = value + 1
+        = value
+    }
+}
+c = ~counter
+print(c.next)
+print(c.next())
+
+print(now)
+print(timestamp)

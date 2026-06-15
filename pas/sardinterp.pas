@@ -5,7 +5,7 @@ unit SardInterp;
 interface
 
 uses
-  SysUtils, Classes, Math, SardTypes;
+  SysUtils, Classes, Math, DateUtils, SardTypes;
 
 type
   TInterpreter = class
@@ -14,6 +14,7 @@ type
     FBreakDepth: Integer;
     FReturnValue: TSardValue;
     FHasReturn: Boolean;
+    FNoAutoCall: Boolean;
     procedure InitBuiltins;
     function NewValue: TSardValue;
     function NewScope(Parent: TSardValue): TSardValue;
@@ -54,6 +55,8 @@ type
     function BuiltInFor(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
     function BuiltInBreak(Scope: TSardValue): TSardValue;
     function BuiltInLen(Args: array of TSardValue): TSardValue;
+    function BuiltInNow: TSardValue;
+    function BuiltInTimestamp: TSardValue;
     function GetArrayElement(Arr: TSardValue; Index: Integer): TSardValue;
     procedure SetArrayElement(Arr: TSardValue; Index: Integer; Value: TSardValue);
   public
@@ -68,7 +71,7 @@ implementation
 
 constructor TInterpreter.Create;
 var
-  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, LenObj: TSardValue;
+  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, LenObj, NowObj, TimestampObj: TSardValue;
 
   procedure AddBuiltin(const Name: string; Obj: TSardValue);
   begin
@@ -83,6 +86,7 @@ begin
   FBreakDepth := 0;
   FReturnValue := nil;
   FHasReturn := False;
+  FNoAutoCall := False;
 
   TrueObj := TSardValue.Create;
   TrueObj.Kind := vkBoolean;
@@ -135,6 +139,18 @@ begin
   LenObj.Callable := True;
   LenObj.BuiltinName := 'len';
   AddBuiltin('len', LenObj);
+
+  NowObj := TSardValue.Create;
+  NowObj.Kind := vkObject;
+  NowObj.Callable := True;
+  NowObj.BuiltinName := 'now';
+  AddBuiltin('now', NowObj);
+
+  TimestampObj := TSardValue.Create;
+  TimestampObj.Kind := vkObject;
+  TimestampObj.Callable := True;
+  TimestampObj.BuiltinName := 'timestamp';
+  AddBuiltin('timestamp', TimestampObj);
 end;
 
 destructor TInterpreter.Destroy;
@@ -325,6 +341,7 @@ var
   Obj: TSardValue;
   Owner: TSardValue;
   RootMem: TSardValue;
+  CallNode: TASTNode;
 begin
   Obj := FindVariable(Scope, Node.Name, Owner);
   if Obj = nil then
@@ -343,6 +360,20 @@ begin
   end;
   Result := Obj.Clone(False);
   Result.Parent := Obj.Parent;
+
+  { Parameterless callables can be invoked without parentheses, like in Pascal. }
+  if (not FNoAutoCall) and Result.Callable and (Result.Params.Count = 0) then
+  begin
+    Result.Release;
+    CallNode := TASTNode.Create(nkCall, '', Node.TokenLine, Node.TokenCol);
+    try
+      CallNode.Left := Node;
+      Result := EvalCall(CallNode, Scope);
+    finally
+      CallNode.Left := nil;
+      CallNode.Free;
+    end;
+  end;
 end;
 
 function TInterpreter.EvalBinary(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -600,11 +631,21 @@ var
   Found: Boolean;
   Curr: TSardValue;
   Idx: Integer;
+  CallNode: TASTNode;
+  SavedNoAutoCall: Boolean;
 begin
-  if ForCall then
-    Base := EvalActualValue(Node.Left, Scope)
-  else
-    Base := EvalExpression(Node.Left, Scope);
+  { The base of a member access is used as an object, not invoked, even if it
+    happens to be a parameterless callable. }
+  SavedNoAutoCall := FNoAutoCall;
+  FNoAutoCall := True;
+  try
+    if ForCall then
+      Base := EvalActualValue(Node.Left, Scope)
+    else
+      Base := EvalExpression(Node.Left, Scope);
+  finally
+    FNoAutoCall := SavedNoAutoCall;
+  end;
   try
     MemberName := LowerName(Node.Right.Name);
     Found := False;
@@ -632,6 +673,19 @@ begin
     begin
       Result := Member.Clone(False);
       Result.SetParent(Base);
+      { Parameterless methods can be invoked without parentheses. }
+      if (not FNoAutoCall) and Result.Callable and (Result.Params.Count = 0) then
+      begin
+        Result.Release;
+        CallNode := TASTNode.Create(nkCall, '', Node.TokenLine, Node.TokenCol);
+        try
+          CallNode.Left := Node;
+          Result := EvalCall(CallNode, Scope);
+        finally
+          CallNode.Left := nil;
+          CallNode.Free;
+        end;
+      end;
     end;
   finally
     Base.Release;
@@ -710,8 +764,16 @@ var
   Base, IndexObj: TSardValue;
   Index: Integer;
   Arr: TSardValue;
+  SavedNoAutoCall: Boolean;
 begin
-  Base := EvalExpression(Node.Left, Scope);
+  { The base of an index access is used as a container, not invoked. }
+  SavedNoAutoCall := FNoAutoCall;
+  FNoAutoCall := True;
+  try
+    Base := EvalExpression(Node.Left, Scope);
+  finally
+    FNoAutoCall := SavedNoAutoCall;
+  end;
   try
     if Base.Kind <> vkArray then
       raise ESardError.Create('Cannot index non-array');
@@ -807,8 +869,14 @@ begin
     else
       CallBase := nil;
 
-    { Evaluate callee }
-    Callee := EvalExpression(Node.Left, Scope);
+    { Evaluate callee. Suppress auto-calling of parameterless callables so that
+      explicit calls like f() or obj.method() receive the callable object itself. }
+    FNoAutoCall := True;
+    try
+      Callee := EvalExpression(Node.Left, Scope);
+    finally
+      FNoAutoCall := False;
+    end;
     try
       if not Callee.Callable then
         raise ESardError.Create('Object is not callable');
@@ -867,6 +935,10 @@ begin
           Result := BuiltInBreak(Scope)
         else if BuiltinName = 'len' then
           Result := BuiltInLen(Args)
+        else if BuiltinName = 'now' then
+          Result := BuiltInNow
+        else if BuiltinName = 'timestamp' then
+          Result := BuiltInTimestamp
         else
           Result := CallUserCallable(Callee, Scope, CallBase, Args, Blocks);
       finally
@@ -1631,6 +1703,16 @@ begin
       raise ESardError.CreateFmt('Cannot convert %s to currency', [Value.KindName]);
     end;
   end
+  else if S = 'date' then
+  begin
+    Result.Kind := vkDate;
+    if Value.Kind = vkDate then Result.FloatValue := Value.FloatValue
+    else
+    begin
+      Result.Release;
+      raise ESardError.CreateFmt('Cannot convert %s to date', [Value.KindName]);
+    end;
+  end
   else if S = 'color' then
   begin
     Result.Kind := vkColor;
@@ -2365,6 +2447,20 @@ begin
     Result.Release;
     raise ESardError.CreateFmt('len requires an array or string, got %s', [Arg.KindName]);
   end;
+end;
+
+function TInterpreter.BuiltInNow: TSardValue;
+begin
+  Result := NewValue;
+  Result.Kind := vkDate;
+  Result.FloatValue := Now;
+end;
+
+function TInterpreter.BuiltInTimestamp: TSardValue;
+begin
+  Result := NewValue;
+  Result.Kind := vkInteger;
+  Result.IntValue := DateTimeToUnix(Now);
 end;
 
 end.

@@ -1,0 +1,8 @@
+print(now())
+print(timestamp())
+print(now() == date)
+print(timestamp() == integer)
+d : date = now()
+print(d)
+d = now()
+print(d)
