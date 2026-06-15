@@ -1103,7 +1103,7 @@ begin
       begin
         Node := NewNode(nkLiteral);
         Node.IsDate := True;
-        Node.FloatValue := StrToInt64(FCurrent.Text);
+        Val(FCurrent.Text, Node.FloatValue, Code);
         Result := Node;
         Advance;
       end;

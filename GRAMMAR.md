@@ -257,21 +257,32 @@ micro = $0.000_001      // 0.000001
 #### 2.4.8 Date Literals
 
 ```
-date-literal         := "0t" date-digit ("_"? date-digit){7}
+date-literal         := "0t" date-digit ("_"? date-digit){7,13}
 
 date-digit           := [0-9]
 ```
 
-Date literals represent a calendar date at midnight, stored internally as a `date` value (TDateTime). The literal begins with the prefix `0t` followed by exactly eight digits in `YYYYMMDD` order. Underscores may be inserted between digit groups for readability, e.g. `0t1971_10_19`.
+Date literals represent a calendar date and optional time, stored internally as a `date` value (TDateTime). The literal begins with the prefix `0t` followed by digits in `YYYYMMDDHHNNSS` order. The shortest form is eight digits (`YYYYMMDD`) representing midnight on that date. Longer forms append the hour (`YYYYMMDDHH`), minute (`YYYYMMDDHHNN`), or second (`YYYYMMDDHHNNSS`). Underscores may be used as separators between digits and are entirely optional; after stripping underscores the literal must contain 8, 10, 12, or 14 digits.
 
 ```sard
-d : date = 0t19711019       // 1971-10-19 00:00:00
-d = 0t1971_10_19            // same date with separators
+d = 0t1971_10_19            // Valid date only
 print(d)                    // 1971-10-19 00:00:00
+
+d = 0t1971_10_19_03         // Valid date and hour
+print(d)                    // 1971-10-19 03:00:00
+
+d = 0t1971_10_19_03_35      // Valid date, hour and minutes
+print(d)                    // 1971-10-19 03:35:00
+
+d = 0t1971_10_19_03_35_52   // Valid date and time with seconds
+print(d)                    // 1971-10-19 03:35:52
+
+d : date = 0t19711019       // 1971-10-19 00:00:00
+d = 0t19711019033552        // 1971-10-19 03:35:52
 print(d == date)            // true
 ```
 
-The lexer validates the date and raises an error for invalid dates such as `0t20211301` or `0t20210229` on non-leap years.
+The lexer validates the date and time and raises an error for invalid dates such as `0t20211301` or `0t20210229` on non-leap years, and for invalid times such as `0t1971_10_19_25` or `0t1971_10_19_03_75`.
 
 ### 2.5 Identifiers
 
@@ -439,7 +450,7 @@ y : my_module.point;
 | `boolean` | Boolean value | `true`, `false` (built-in objects, not literals) |
 | `color` | RGB color value (DWORD 4 bytes) | `#ff0000` |
 | `currency` | Fixed-point decimal (64-bit, 6 fractional digits) | `$100`, `$99.99` |
-| `date` | Date/time value | `0t19711019`, `0t1971_10_19`, `now()` |
+| `date` | Date/time value | `0t19711019`, `0t1971_10_19`, `0t1971_10_19_03_35_52`, `now()` |
 | `array` | Ordered collection | `[1, 2, 3]` |
 | `object` | User-defined object | `~my_proto` |
 
@@ -1913,28 +1924,30 @@ print(len(multiline))    // 11
 
 ### 9.6 Date and Time Functions
 
-The runtime provides two built-in callable objects for working with date and time, plus date literals for fixed calendar dates:
+The runtime provides two built-in callable objects for working with date and time, plus date literals for fixed calendar dates and times:
 
 ```sard
-print(now())        // current date/time as a date value
-print(timestamp())  // current Unix timestamp as an integer
-print(0t19711019)   // 1971-10-19 00:00:00 as a date value
+print(now())                    // current date/time as a date value
+print(timestamp())              // current Unix timestamp as an integer
+print(0t19711019)               // 1971-10-19 00:00:00 as a date value
+print(0t1971_10_19_03_35_52)    // 1971-10-19 03:35:52 as a date value
 ```
 
 **Behavior:**
 - `now()` returns the current date and time as a `date` value
 - `timestamp()` returns the current Unix timestamp (seconds since epoch) as an `integer`
-- Date literals (`0tYYYYMMDD` or `0tYYYY_MM_DD`) produce a `date` value at midnight UTC/local time
+- Date literals support the forms `0tYYYYMMDD`, `0tYYYYMMDDHH`, `0tYYYYMMDDHHNN`, and `0tYYYYMMDDHHNNSS`, with optional underscores between digit groups. They produce a `date` value in local time.
 
 Type checks work as expected:
 
 ```sard
-print(now() == date)            // true
-print(timestamp() == integer)   // true
-print(0t1971_10_19 == date)     // true
+print(now() == date)                  // true
+print(timestamp() == integer)         // true
+print(0t1971_10_19 == date)           // true
+print(0t1971_10_19_03_35_52 == date)  // true
 
-d : date = 0t1971_10_19
-print(d)                        // 1971-10-19 00:00:00
+d : date = 0t1971_10_19_03_35_52
+print(d)                              // 1971-10-19 03:35:52
 ```
 
 ### 9.7 Extending the Language

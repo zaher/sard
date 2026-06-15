@@ -285,7 +285,10 @@ var
   Start: Integer;
   S: string;
   Year, Month, Day: Integer;
-  DateValue: TDateTime;
+  Hour, Min, Sec: Integer;
+  DateValue, TimeValue: TDateTime;
+  Len: Integer;
+  FS: TFormatSettings;
 begin
   Advance; { '0' }
   Advance; { 't' }
@@ -294,8 +297,10 @@ begin
     Advance;
   S := Copy(FSource, Start, FPos - Start);
   S := StringReplace(S, '_', '', [rfReplaceAll]);
-  if Length(S) <> 8 then
-    raise ESardError.CreateFmt('Invalid date literal at line %d col %d: expected 8 digits', [FLine, FCol]);
+  Len := Length(S);
+  if (Len <> 8) and (Len <> 10) and (Len <> 12) and (Len <> 14) then
+    raise ESardError.CreateFmt('Invalid date literal at line %d col %d: expected 8, 10, 12, or 14 digits', [FLine, FCol]);
+
   Year := StrToInt(Copy(S, 1, 4));
   Month := StrToInt(Copy(S, 5, 2));
   Day := StrToInt(Copy(S, 7, 2));
@@ -304,7 +309,25 @@ begin
   except
     raise ESardError.CreateFmt('Invalid date literal at line %d col %d', [FLine, FCol]);
   end;
-  Result := IntToStr(Trunc(DateValue));
+
+  Hour := 0;
+  Min := 0;
+  Sec := 0;
+  if Len >= 10 then Hour := StrToInt(Copy(S, 9, 2));
+  if Len >= 12 then Min := StrToInt(Copy(S, 11, 2));
+  if Len >= 14 then Sec := StrToInt(Copy(S, 13, 2));
+
+  try
+    TimeValue := EncodeTime(Hour, Min, Sec, 0);
+  except
+    raise ESardError.CreateFmt('Invalid date literal at line %d col %d: invalid time', [FLine, FCol]);
+  end;
+
+  DateValue := DateValue + TimeValue;
+
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+  Result := FloatToStrF(DateValue, ffGeneral, 17, 0, FS);
 end;
 
 function TLexer.ReadEscape: string;
