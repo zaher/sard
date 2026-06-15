@@ -1,0 +1,10 @@
+// Implicit call: bare identifier statement resolves to callable
+object1 : () {
+    print("Hi1")
+}
+
+// Explicit call
+object1()
+
+// Implicit call (no parentheses)
+object1

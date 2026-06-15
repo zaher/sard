@@ -203,6 +203,7 @@ var
   I: Integer;
   Child, LastRet: TSardValue;
   StartBreakDepth: Integer;
+  CallNode: TASTNode;
 begin
   Result := nil;
   FHasReturn := False;
@@ -211,6 +212,20 @@ begin
   begin
     if Result <> nil then Result.Release;
     Result := EvalNode(Node.Children[I], Scope);
+    { Implicit call: a bare identifier statement that resolves to a callable
+      object is invoked with no arguments (Grammar.md §4.7). }
+    if (Node.Children[I].Kind = nkIdentifier) and (Result <> nil) and Result.Callable then
+    begin
+      Result.Release;
+      CallNode := TASTNode.Create(nkCall, '', 0, 0);
+      try
+        CallNode.Left := Node.Children[I]; { borrow the original AST node }
+        Result := EvalCall(CallNode, Scope);
+      finally
+        CallNode.Left := nil; { detach so freeing the synthetic node does not free the AST child }
+        CallNode.Free;
+      end;
+    end;
     if FHasReturn then Break;
     if FBreakDepth < StartBreakDepth then Break;
   end;
