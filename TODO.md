@@ -8,6 +8,8 @@
 --* loop without () or with empty (), endless loop, should break using `break`
 --* Date type `0t20261019`
 
+* print(0t2026_10_10 - 0t2026_10_11);
+
 * Namespace, extend namespace
 * Inherited object/extend
 * constructors, destructors
@@ -15,4 +17,6 @@
 * Math functions
     Abs, Min, Max, Sin, Cos, Tan
 * Date
-    Now, Time, Timestamp, Clock
+    Now, Time, Timestamp, Clock, Format
+
+* Sleep(ms)

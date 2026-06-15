@@ -115,7 +115,7 @@ for([10, 20, 30], v) {
 // Blocks as expressions
 result = {
     temp = x + y;
-    temp * 2;       // Block returns this value
+    = temp * 2;       // Block returns this value
 };
 
 // String concatenation with escapes
