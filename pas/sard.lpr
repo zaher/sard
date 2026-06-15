@@ -5,6 +5,8 @@ program Sard;
 uses
   SysUtils, Classes, SardConsole;
 
+{$R *.res}
+
 begin
   RunConsole;
 end.

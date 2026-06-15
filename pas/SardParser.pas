@@ -219,14 +219,11 @@ function TParser.ParseStatement: TASTNode;
 var
   LVal, Expr, Node, Bin, BlockNode: TASTNode;
   Name, TypeName: string;
-  Saved: TToken;
   ParamNames, ParamTypes: TStringArray;
   ParamDefaults: TASTNodeArray;
   OpenIndex: Integer;
   RetType: string;
-  HasType, HasParams: Boolean;
   IsLVal: Boolean;
-  Count: Integer;
 begin
   Result := nil;
   OpenIndex := -1;
@@ -264,7 +261,6 @@ begin
     Exit;
   end;
 
-  Saved := FCurrent;
   Name := FCurrent.Text;
   Advance;
 
@@ -286,6 +282,8 @@ begin
   if FCurrent.Kind = tkColon then
   begin
     Advance;
+    ParamNames := nil;
+    ParamTypes := nil;
     SetLength(ParamNames, 0);
     SetLength(ParamTypes, 0);
     RetType := '';
@@ -885,9 +883,6 @@ function TParser.ParsePostfixChain(StartNode: TASTNode): TASTNode;
 var
   Node, ArgNode, BlockNode: TASTNode;
   Saved: TToken;
-  HasArgs: Boolean;
-  HasBlock: Boolean;
-  HasNamedBlock: Boolean;
 
   function IsContinuation(CurrNode: TASTNode): Boolean;
   begin
@@ -1047,9 +1042,9 @@ end;
 function TParser.ParsePrimary: TASTNode;
 var
   Node: TASTNode;
-  Code: Integer;
+  //Code: Integer;
   S: string;
-  DotPos, FracCount, I: Integer;
+  DotPos: Integer;
 begin
   case FCurrent.Kind of
     tkInteger:
@@ -1062,7 +1057,7 @@ begin
     tkNumber:
       begin
         Node := NewNode(nkLiteral);
-        Val(FCurrent.Text, Node.FloatValue, Code);
+        //Val(FCurrent.Text, Node.FloatValue, Code);
         Result := Node;
         Advance;
       end;
@@ -1103,7 +1098,7 @@ begin
       begin
         Node := NewNode(nkLiteral);
         Node.IsDate := True;
-        Val(FCurrent.Text, Node.FloatValue, Code);
+        //Val(FCurrent.Text, Node.FloatValue, Code);
         Result := Node;
         Advance;
       end;

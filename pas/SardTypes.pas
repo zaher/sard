@@ -7,7 +7,7 @@ unit SardTypes;
 interface
 
 uses
-  SysUtils, Classes, Contnrs, RTTI;
+  SysUtils, Classes, RTTI;
 
 type
   {$ifndef FPC}

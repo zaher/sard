@@ -219,7 +219,6 @@ end;
 function TInterpreter.EvalStatements(Node: TASTNode; Scope: TSardValue): TSardValue;
 var
   I: Integer;
-  Child, LastRet: TSardValue;
   StartBreakDepth: Integer;
   CallNode: TASTNode;
 begin
@@ -386,7 +385,6 @@ end;
 function TInterpreter.EvalBinary(Node: TASTNode; Scope: TSardValue): TSardValue;
 var
   Left, Right: TSardValue;
-  CompResult: Integer;
   TypeName: string;
 
   function TypeMatches(Val: TSardValue; const TName: string): Boolean;
@@ -506,7 +504,6 @@ var
   Target, NewVal: TSardValue;
   OldInt: Int64;
   NewInt: Int64;
-  Idx: Integer;
   Arr: TSardValue;
 begin
   if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned) then
@@ -567,7 +564,6 @@ var
   Target: TSardValue;
   OldInt: Int64;
   NewInt: Int64;
-  Idx: Integer;
   Arr: TSardValue;
   Operand: TSardValue;
 begin
@@ -633,7 +629,7 @@ end;
 
 function TInterpreter.EvalMemberAccess(Node: TASTNode; Scope: TSardValue; ForCall: Boolean): TSardValue;
 var
-  Base, Member, ActualBase: TSardValue;
+  Base, Member: TSardValue;
   MemberName: string;
   Found: Boolean;
   Curr: TSardValue;
@@ -814,12 +810,8 @@ var
   ArgNodes: array of TASTNode;
   Blocks: TASTNode;
   I, J: Integer;
-  IsBuiltin: Boolean;
   BuiltinName: string;
-  RootMem: TSardValue;
   ArgListNode: TASTNode;
-  BlockNode: TASTNode;
-  NewArgs: array of TSardValue;
   ArgsList: TList;
   ArgNodeList: TList;
   BlocksList: TList;
@@ -892,10 +884,12 @@ begin
 
       try
         { Build argument values; for builtin 'while', keep condition as lazy node }
+        ArgNodes := nil;
         SetLength(ArgNodes, ArgNodeList.Count);
         for I := 0 to ArgNodeList.Count - 1 do
           ArgNodes[I] := TASTNode(ArgNodeList[I]);
 
+        Args := nil;
         SetLength(Args, ArgNodeList.Count);
         for I := 0 to High(ArgNodes) do
         begin
@@ -990,17 +984,13 @@ var
   TargetType: string;
   Arr: TSardValue;
   CloneValue: TSardValue;
-  DoAccountant: Boolean;
   AccountantOp: string;
   PercentNode: TASTNode;
   LeftExpr: TASTNode;
-  AccountantRight: TASTNode;
   AccountantNode: TASTNode;
   AccountantMul: TASTNode;
   AccountantDiv: TASTNode;
   AccountantOne: TASTNode;
-  AccountantFactor: TASTNode;
-  AccountantResult: TSardValue;
 
   function IsAccountantPattern(N: TASTNode; out Op: string; out PercentChild: TASTNode; out LeftSide: TASTNode): Boolean;
   begin
@@ -1025,7 +1015,6 @@ begin
     raise ESardError.Create('Invalid assignment target');
 
   { Accountant calculator mode at top level: check RHS pattern }
-  DoAccountant := False;
   AccountantOp := '';
   PercentNode := nil;
   LeftExpr := nil;
@@ -1312,7 +1301,6 @@ var
   MemberName: string;
   Curr: TSardValue;
   Found: Boolean;
-  I: Integer;
 begin
   { @expr: for lvalues, return the actual stored object reference; otherwise eval expression }
   if Node.Left = nil then
@@ -1390,13 +1378,7 @@ end;
 
 function TInterpreter.EvalLValue(Node: TASTNode; Scope: TSardValue; out Owner: TSardValue; out Name: string; out Index: Integer; out IsIndexed: Boolean; out OwnerOwned: Boolean): Boolean;
 var
-  Base: TSardValue;
   IndexObj: TSardValue;
-  Val: TSardValue;
-  MemberName: string;
-  Curr: TSardValue;
-  Idx: Integer;
-  Found: Boolean;
 
   function EvalActual(ANode: TASTNode): TSardValue;
   var
@@ -1476,7 +1458,7 @@ begin
   if Node.Kind = nkIdentifier then
   begin
     Name := Node.Name;
-    Val := FindVariable(Scope, Name, Owner);
+    //Val := FindVariable(Scope, Name, Owner);
     Result := True;
   end
   else if Node.Kind = nkMemberAccess then
@@ -1507,13 +1489,8 @@ var
   I1, I2: Int64;
   CV1, CV2: Int64;
   IsCurr: Boolean;
-  S: string;
   I: Integer;
   V: TSardValue;
-  NewArr: TSardValue;
-  BaseArr: TSardValue;
-  Elem: TSardValue;
-  ArrLen: Integer;
 begin
   Result := NewValue;
 
@@ -1877,12 +1854,7 @@ var
   I, J, OpenIdx: Integer;
   ParamName: string;
   ArgValue, Arr, V: TSardValue;
-  OldReturn: TSardValue;
-  OldHasReturn: Boolean;
   BlockNode: TASTNode;
-  BlockName: string;
-  NamedBlockScope: TSardValue;
-  BlocksArg: TSardValue;
   BlocksArray: TSardValue;
   BlockVal: TSardValue;
   SavedReturn: TSardValue;
@@ -2080,7 +2052,7 @@ end;
 
 function TInterpreter.BuiltInWhile(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
-  CondValue, FirstCheck: Boolean;
+  CondValue: Boolean;
   I: Integer;
   BlockNode: TASTNode;
   BodyBlock, ElseBlock: TASTNode;
@@ -2091,8 +2063,6 @@ var
   Ret: TSardValue;
   HasCondition: Boolean;
   LoopDepth: Integer;
-  CondObj: TSardValue;
-  OldBreakDepth: Integer;
   BodyResult: TSardValue;
 
   function EvalCondition: Boolean;

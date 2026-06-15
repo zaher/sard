@@ -14,6 +14,10 @@
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
+    <VersionInfo>
+      <UseVersionInfo Value="True"/>
+      <MinorVersionNr Value="1"/>
+    </VersionInfo>
     <BuildModes>
       <Item Name="Debug" Default="True"/>
       <Item Name="Release">
@@ -55,29 +59,26 @@
       <Unit>
         <Filename Value="sard.lpr"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="Sard"/>
       </Unit>
       <Unit>
-        <Filename Value="sard_lexer.pas"/>
+        <Filename Value="SardConsole.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="sard_parser.pas"/>
+        <Filename Value="SardInterp.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="sard_ast.pas"/>
+        <Filename Value="SardParser.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="sard_objects.pas"/>
+        <Filename Value="SardLexer.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="sard_interpreter.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="sard_errors.pas"/>
+        <Filename Value="SardTypes.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -113,6 +114,9 @@
         <TrashVariables Value="True"/>
       </Debugging>
     </Linking>
+    <Other>
+      <CustomOptions Value="-B"/>
+    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions>

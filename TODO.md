@@ -13,6 +13,7 @@
 * Namespace, extend namespace
 * Inherited object/extend
 * constructors, destructors
+* named params
 
 * Math functions
     Round, Abs, Min, Max, Sin, Cos, Tan

@@ -325,7 +325,11 @@ begin
 
   DateValue := DateValue + TimeValue;
 
+  {$ifdef FPC}
   FS := DefaultFormatSettings;
+  {$else}
+  FS := FormatSettings;
+  {$endif}
   FS.DecimalSeparator := '.';
   Result := FloatToStrF(DateValue, ffGeneral, 17, 0, FS);
 end;
