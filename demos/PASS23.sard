@@ -1,0 +1,23 @@
+// Else-if chaining
+score : integer = 85
+
+if (score >= 90) {
+    print("Grade: A")
+} else if (score >= 80) {
+    print("Grade: B")
+} else if (score >= 70) {
+    print("Grade: C")
+} else {
+    print("Grade: D or F")
+}
+
+// Else-if used as an expression
+x = 5
+sign = if (x < 0) {
+    = "negative"
+} else if (x = 0) {
+    = "zero"
+} else {
+    = "positive"
+}
+print(sign)

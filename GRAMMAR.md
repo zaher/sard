@@ -753,6 +753,24 @@ A callable is only auto-invoked when it is used as a value. When it appears as t
   - Another named block (chaining)
 - Newlines are ignored around named block keywords: they may appear before the keyword (after the previous block's `}`) and between the keyword and its opening `{`.
 
+**`else if` Chains:**
+
+`if` supports chained alternatives using `else if`. Each `else if` provides its own condition and body. Conditions are evaluated in order, and the first body whose condition is true is executed. A final `else` block may follow the chain and runs only when none of the preceding conditions were true.
+
+```sard
+if (score >= 90) {
+    print("Grade: A")
+} else if (score >= 80) {
+    print("Grade: B")
+} else if (score >= 70) {
+    print("Grade: C")
+} else {
+    print("Grade: D or F")
+}
+```
+
+Syntactically, `else if` is a special named-block form: the keyword `else` is immediately followed by the identifier `if`, an argument-list with the condition, and a body block. The parser treats the whole `else if (cond) { ... }` sequence as a single continuation of the preceding `if` call. Newlines may appear before each `else`/`else if` keyword and between the keyword and its opening `{`.
+
 **No Call Chaining:** Call expressions cannot be chained. The following are invalid:
 ```sard
 func()()       // ERROR: cannot call result of call
@@ -1671,10 +1689,29 @@ if (x < 10) {
 };
 ```
 
+**`else if`:**
+
+`if` supports chained `else if` alternatives. Each `else if` has its own condition and body. Conditions are tested in order after the main `if` condition is false, and the first matching body runs. An optional final `else` block runs if none of the conditions matched.
+
+```sard
+score : integer = 85
+
+if (score >= 90) {
+    print("Grade: A")
+} else if (score >= 80) {
+    print("Grade: B")
+} else if (score >= 70) {
+    print("Grade: C")
+} else {
+    print("Grade: D or F")
+}
+```
+
 **How it works:**
 - `if` and `else` are both built-in objects in the root scope
-- `if` accepts a condition, an anonymous block, and optionally a named `else` block
+- `if` accepts a condition, an anonymous block, and optionally named `else` and `else-if` blocks
 - The `else { ... }` syntax is parsed as a **named block** passed to the preceding call
+- The `else if (cond) { ... }` syntax is parsed as a special named block (name `else-if`) passed to the preceding `if` call
 - Named blocks are part of the postfix syntax: `identifier { ... }` following a call
 - Built-in objects inspect received blocks (by name or position) and decide which to execute
 
@@ -2116,23 +2153,19 @@ print(app.config.version);
 app.config.debug = false;
 ```
 
-### Example 10: Control Flow with if/else
+### Example 10: Control Flow with if/else/else if
 
 ```sard
 score : integer = 85;
 
 if (score >= 90) {
     print("Grade: A");
+} else if (score >= 80) {
+    print("Grade: B");
+} else if (score >= 70) {
+    print("Grade: C");
 } else {
-    if (score >= 80) {
-        print("Grade: B");
-    } else {
-        if (score >= 70) {
-            print("Grade: C");
-        } else {
-            print("Grade: D or F");
-        };
-    };
+    print("Grade: D or F");
 };
 ```
 
@@ -2328,6 +2361,8 @@ postfix-percent      := "%"
 postfix-inc-dec      := ("++" | "--")    (* Semantic constraint: the entire preceding postfix chain must be an lvalue (identifier, member access, or index); enforced by semantic analysis *)
 
 named-block          := identifier argument-list? block
+                      | "else" "if" argument-list block     (* else-if chain: else if (cond) { ... } *)
+                      | "else" block                        (* final else block *)
                       (* SYNTACTIC CONSTRAINT: Named blocks can only follow: *)
                       (*   - argument-list: if (cond) { } else { } *)
                       (*   - anonymous block: while (cond) { } else { } *)
@@ -2403,6 +2438,7 @@ qualified-identifier := identifier ("." identifier)*
 | `#` | Color literal prefix |
 | `{ }` | Block / object body / named block body |
 | `identifier { }` | Named block (e.g. `named_block { ... }`) |
+| `else if (cond) { }` | Chained alternative branch for `if` |
 | `type-name ( expr )` | Type cast (Pascal-style, e.g. `integer(x)`) |
 | `( )` | Argument list / grouping |
 | `[ ]` | Array literal / index |

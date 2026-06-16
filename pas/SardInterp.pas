@@ -1971,28 +1971,47 @@ var
   CondValue: Boolean;
   I: Integer;
   BlockNode: TASTNode;
-  BodyBlock, ElseBlock: TASTNode;
+  BodyBlock: TASTNode;
   NewScopeObj: TSardValue;
   SavedReturn: TSardValue;
   SavedHasReturn: Boolean;
 
   Ret: TSardValue;
+  ElseIfCond: TSardValue;
+
+  function ExecuteBlock(Body: TASTNode): TSardValue;
+  begin
+    Result := nil;
+    if Body = nil then Exit;
+    NewScopeObj := NewScope(Scope);
+    SavedReturn := FReturnValue;
+    SavedHasReturn := FHasReturn;
+    FReturnValue := nil;
+    FHasReturn := False;
+    try
+      Result := EvalStatements(Body, NewScopeObj);
+      if Result <> nil then Result.AddRef;
+    finally
+      NewScopeObj.Release;
+      if FReturnValue <> nil then FReturnValue.Release;
+      FReturnValue := SavedReturn;
+      FHasReturn := SavedHasReturn;
+    end;
+  end;
+
 begin
   CondValue := True;
   if Length(Args) > 0 then
     CondValue := IsTruthy(Args[0]);
 
   BodyBlock := nil;
-  ElseBlock := nil;
   if Blocks <> nil then
   begin
     for I := 0 to High(Blocks.Children) do
     begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then
-        BodyBlock := BlockNode
-      else if LowerName(BlockNode.Name) = 'else' then
-        ElseBlock := BlockNode;
+        BodyBlock := BlockNode;
     end;
   end;
 
@@ -2004,51 +2023,48 @@ begin
     if BodyBlock <> nil then
     begin
       Result.Release;
-      NewScopeObj := NewScope(Scope);
-      SavedReturn := FReturnValue;
-      SavedHasReturn := FHasReturn;
-      FReturnValue := nil;
-      FHasReturn := False;
-      try
-        Ret := EvalStatements(BodyBlock, NewScopeObj);
-        if Ret <> nil then Ret.AddRef;
-      finally
-        NewScopeObj.Release;
-        if FReturnValue <> nil then FReturnValue.Release;
-        FReturnValue := SavedReturn;
-        FHasReturn := SavedHasReturn;
-      end;
-      if Ret <> nil then
-      begin
-        Result := Ret;
-      end
-      else
-        Result := NewValue;
-    end;
-  end
-  else
-  begin
-    if ElseBlock <> nil then
-    begin
-      Result.Release;
-      NewScopeObj := NewScope(Scope);
-      SavedReturn := FReturnValue;
-      SavedHasReturn := FHasReturn;
-      FReturnValue := nil;
-      FHasReturn := False;
-      try
-        Ret := EvalStatements(ElseBlock, NewScopeObj);
-        if Ret <> nil then Ret.AddRef;
-      finally
-        NewScopeObj.Release;
-        if FReturnValue <> nil then FReturnValue.Release;
-        FReturnValue := SavedReturn;
-        FHasReturn := SavedHasReturn;
-      end;
+      Ret := ExecuteBlock(BodyBlock);
       if Ret <> nil then
         Result := Ret
       else
         Result := NewValue;
+    end;
+  end
+  else if Blocks <> nil then
+  begin
+    for I := 0 to High(Blocks.Children) do
+    begin
+      BlockNode := Blocks.Children[I];
+      if BlockNode.Name = '' then
+        Continue;
+      if LowerName(BlockNode.Name) = 'else-if' then
+      begin
+        ElseIfCond := EvalExpression(BlockNode.Left, Scope);
+        try
+          if IsTruthy(ElseIfCond) then
+          begin
+            Result.Release;
+            Ret := ExecuteBlock(BlockNode);
+            if Ret <> nil then
+              Result := Ret
+            else
+              Result := NewValue;
+            Break;
+          end;
+        finally
+          ElseIfCond.Release;
+        end;
+      end
+      else if LowerName(BlockNode.Name) = 'else' then
+      begin
+        Result.Release;
+        Ret := ExecuteBlock(BlockNode);
+        if Ret <> nil then
+          Result := Ret
+        else
+          Result := NewValue;
+        Break;
+      end;
     end;
   end;
 end;

@@ -881,7 +881,7 @@ end;
 
 function TParser.ParsePostfixChain(StartNode: TASTNode): TASTNode;
 var
-  Node, ArgNode, BlockNode: TASTNode;
+  Node, ArgNode, BlockNode, CondNode: TASTNode;
   Saved: TToken;
 
   function IsContinuation(CurrNode: TASTNode): Boolean;
@@ -954,12 +954,44 @@ begin
             end;
           end;
           { named blocks }
-          while FCurrent.Kind = tkIdentifier do
+          while True do
           begin
+            { allow newline before next named block (e.g. else / else if) }
+            if FCurrent.Kind = tkNewLine then
+            begin
+              Saved := FCurrent;
+              while FCurrent.Kind = tkNewLine do Advance;
+              if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+              begin
+                FLookahead := FCurrent;
+                FHasLookahead := True;
+                FCurrent := Saved;
+                Break;
+              end;
+            end;
+            if FCurrent.Kind <> tkIdentifier then Break;
             Saved := FCurrent;
             Advance;
             { allow newline between named block keyword (e.g. else) and its block }
             while FCurrent.Kind = tkNewLine do Advance;
+            { Special case: else if with condition and block }
+            if (LowerName(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
+               (LowerName(FCurrent.Text) = 'if') then
+            begin
+              Advance;
+              while FCurrent.Kind = tkNewLine do Advance;
+              Expect(tkLParen);
+              CondNode := ParseExpression();
+              Expect(tkRParen);
+              while FCurrent.Kind = tkNewLine do Advance;
+              if FCurrent.Kind <> tkLBrace then
+                raise MakeError('Expected block after else if condition');
+              BlockNode := ParseBlock();
+              BlockNode.Name := 'else-if';
+              BlockNode.Left := CondNode;
+              Node.AddChild(BlockNode);
+              Continue;
+            end;
             if FCurrent.Kind = tkLBrace then
             begin
               BlockNode := ParseBlock();
@@ -996,6 +1028,61 @@ begin
               FCurrent := Saved;
             end;
           end;
+          { named blocks }
+          while True do
+          begin
+            { allow newline before next named block (e.g. else / else if) }
+            if FCurrent.Kind = tkNewLine then
+            begin
+              Saved := FCurrent;
+              while FCurrent.Kind = tkNewLine do Advance;
+              if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+              begin
+                FLookahead := FCurrent;
+                FHasLookahead := True;
+                FCurrent := Saved;
+                Break;
+              end;
+            end;
+            if FCurrent.Kind <> tkIdentifier then Break;
+            Saved := FCurrent;
+            Advance;
+            while FCurrent.Kind = tkNewLine do Advance;
+            { Special case: else if with condition and block }
+            if (LowerName(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
+               (LowerName(FCurrent.Text) = 'if') then
+            begin
+              Advance;
+              while FCurrent.Kind = tkNewLine do Advance;
+              Expect(tkLParen);
+              CondNode := ParseExpression();
+              Expect(tkRParen);
+              while FCurrent.Kind = tkNewLine do Advance;
+              if FCurrent.Kind <> tkLBrace then
+                raise MakeError('Expected block after else if condition');
+              BlockNode := ParseBlock();
+              BlockNode.Name := 'else-if';
+              BlockNode.Left := CondNode;
+              Node.AddChild(BlockNode);
+              Continue;
+            end;
+            if FCurrent.Kind = tkLBrace then
+            begin
+              BlockNode := ParseBlock();
+              BlockNode.Name := Saved.Text;
+              Node.AddChild(BlockNode);
+            end
+            else if FCurrent.Kind = tkLParen then
+            begin
+              ArgNode := ParseArgumentList();
+              BlockNode := ParseBlock();
+              BlockNode.Name := Saved.Text;
+              BlockNode.AddChild(ArgNode);
+              Node.AddChild(BlockNode);
+            end
+            else
+              raise MakeError('Expected block or argument list after named block');
+          end;
           Result := Node;
         end;
       tkIncrement, tkDecrement:
@@ -1021,7 +1108,27 @@ begin
           Advance;
           { allow newline between named block keyword (e.g. else) and its block }
           while FCurrent.Kind = tkNewLine do Advance;
-          if FCurrent.Kind = tkLBrace then
+          { Special case: else if with condition and block }
+          if (LowerName(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
+             (LowerName(FCurrent.Text) = 'if') then
+          begin
+            Advance;
+            while FCurrent.Kind = tkNewLine do Advance;
+            Expect(tkLParen);
+            CondNode := ParseExpression();
+            Expect(tkRParen);
+            while FCurrent.Kind = tkNewLine do Advance;
+            if FCurrent.Kind <> tkLBrace then
+              raise MakeError('Expected block after else if condition');
+            BlockNode := ParseBlock();
+            BlockNode.Name := 'else-if';
+            BlockNode.Left := CondNode;
+            Node := NewNode(nkCall);
+            Node.Left := Result;
+            Node.AddChild(BlockNode);
+            Result := Node;
+          end
+          else if FCurrent.Kind = tkLBrace then
           begin
             BlockNode := ParseBlock();
             BlockNode.Name := Saved.Text;
