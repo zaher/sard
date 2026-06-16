@@ -310,6 +310,11 @@ end;
 function TInterpreter.EvalLiteral(Node: TASTNode): TSardValue;
 begin
   Result := NewValue;
+  if Node.IsNone then
+  begin
+    Result.Kind := vkNull;
+    Exit;
+  end;
   if Node.CurrencyValue <> 0 then
   begin
     Result.Kind := vkCurrency;

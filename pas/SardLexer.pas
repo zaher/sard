@@ -565,6 +565,7 @@ begin
     else if LowerName(S) = 'and' then Result := tkAnd
     else if LowerName(S) = 'or' then Result := tkOr
     else if LowerName(S) = 'not' then Result := tkNot
+    else if LowerName(S) = 'none' then Result := tkNone
     else Result := tkIdentifier;
     Exit;
   end;

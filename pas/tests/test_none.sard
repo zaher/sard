@@ -1,0 +1,34 @@
+x = none
+print(x)
+print(x == none)
+
+if (none) {
+    print("truthy")
+} else {
+    print("falsy")
+}
+
+maybe : (value) {
+    = if (value == none) {
+        "missing"
+    } else {
+        "got: " + string(value)
+    }
+}
+
+print(maybe(none))
+print(maybe(42))
+
+// Case insensitivity
+y = None
+print(y == none)
+
+// Default omitted argument
+foo : (a) {
+    print(a == none)
+}
+foo()
+
+// Empty block evaluates to none
+empty = {}
+print(empty)

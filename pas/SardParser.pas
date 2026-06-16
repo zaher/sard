@@ -1209,6 +1209,13 @@ begin
         Result := Node;
         Advance;
       end;
+    tkNone:
+      begin
+        Node := NewNode(nkLiteral);
+        Node.IsNone := True;
+        Result := Node;
+        Advance;
+      end;
     tkIdentifier:
       begin
         if IsTypeName(FCurrent.Text) and (Peek.Kind = tkLParen) then

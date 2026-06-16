@@ -19,7 +19,7 @@ type
   { Token kinds }
   TTokenKind = (
     tkEOF,
-    tkInteger, tkNumber, tkHex, tkString, tkColor, tkCurrency, tkDate,
+    tkInteger, tkNumber, tkHex, tkString, tkColor, tkCurrency, tkDate, tkNone,
     tkIdentifier,
     tkColon, tkSemicolon, tkComma, tkDot,
     tkAssign, tkTypeCheck,
@@ -66,6 +66,7 @@ type
     CurrencyValue: Int64;
     BoolValue: Boolean;
     IsDate: Boolean;
+    IsNone: Boolean;
     Name: string;
     Op: string;
     Children: array of TASTNode;
@@ -192,9 +193,10 @@ begin
   FloatValue := 0;
   ColorValue := 0;
   CurrencyValue := 0;
-   BoolValue := False;
-   IsDate := False;
-   Name := '';
+    BoolValue := False;
+    IsDate := False;
+    IsNone := False;
+    Name := '';
    Op := '';
     Typ := '';
     ReturnType := '';
@@ -240,6 +242,7 @@ begin
    Result.CurrencyValue := CurrencyValue;
    Result.BoolValue := BoolValue;
    Result.IsDate := IsDate;
+   Result.IsNone := IsNone;
    Result.Name := Name;
   Result.Op := Op;
   Result.Typ := Typ;
@@ -512,7 +515,7 @@ var
   V: TSardValue;
 begin
   case Kind of
-    vkNull: Result := 'null';
+    vkNull: Result := 'none';
     vkInteger: Result := IntToStr(IntValue);
     vkNumber:
       begin

@@ -16,7 +16,7 @@ Key characteristics:
 - **No global scope** — lexical parent-chain scoping
 - **Blocks are expressions** — every block evaluates to a value
 - **Assignment (`=`) is a statement-level construct**; in expression contexts, `=` is equality comparison
-- Reserved words are limited to `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `date`, `array`, `object`). Built-in constructs (`if`, `while`, etc.) are ordinary objects in the root scope and can be overridden or extended via addons
+- Reserved words are limited to `true`, `false`, `none`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `date`, `array`, `object`). Built-in constructs (`if`, `while`, etc.) are ordinary objects in the root scope and can be overridden or extended via addons
 - **Extensible named operators** — `mod`, `and`, `or`, `not` are recognized as special tokens by the lexer, but their behavior is provided by operator handler objects that can be overridden or extended via addons. These can be shadowed by local declarations like any other identifier.
 
 ### Implementation Notes
@@ -284,6 +284,33 @@ print(d == date)            // true
 
 The lexer validates the date and time and raises an error for invalid dates such as `0t20211301` or `0t20210229` on non-leap years, and for invalid times such as `0t1971_10_19_25` or `0t1971_10_19_03_75`.
 
+#### 2.4.9 None Literal
+
+```
+none-literal         := "none" | "None" | "NONE"
+```
+
+The `none` literal represents the absence of a value, equivalent to Python's `None`. It is a reserved word and is case-insensitive. Internally it is stored as the null value (`vkNull`).
+
+```sard
+x = none
+print(x)                    // none
+print(x == none)            // true
+
+// none is falsy, like Python None
+if (none) {
+    print("yes")
+} else {
+    print("no")             // prints "no"
+}
+
+// Default values and omitted arguments are none
+foo : (a) {
+    print(a == none)        // true when called as foo()
+}
+foo()
+```
+
 ### 2.5 Identifiers
 
 ```
@@ -307,7 +334,7 @@ identifier-continue  := identifier-start | digit
 
 **Rules:**
 - Identifiers are case-insensitive internally (stored in lowercase)
-- Reserved words: `true`, `false`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `date`, `array`, `object`)
+- Reserved words: `true`, `false`, `none`, and built-in type names (`integer`, `number`, `string`, `boolean`, `color`, `currency`, `date`, `array`, `object`)
 - Words like `if`, `while` are **built-in root-scope objects**, not keywords. They can be shadowed by local declarations or replaced via addons, though this is not recommended for readability.
 - Named operators (`mod`, `and`, `or`, `not`) are **operator handler objects** that can be defined, overridden, or extended via addons to provide custom behavior.
 
@@ -476,7 +503,7 @@ A type-cast expression converts the value of the inner expression to the named t
 | `boolean` | `integer` | `true` → `1`, `false` → `0` |
 | `integer` / `string` | `number` | Converted to floating-point |
 | any | `string` | Human-readable string form |
-| any | `boolean` | Truthiness test (`0`, `null`, `""` → `false`; others → `true`) |
+| any | `boolean` | Truthiness test (`0`, `none`, `""` → `false`; others → `true`) |
 | `integer` / `number` | `currency` | Fixed-point currency value |
 | `integer` | `color` | RGB value (`color(255)` → `#0000FF`) |
 | `array` | `array` | Copy of the array |
@@ -516,6 +543,7 @@ literal              := integer-literal
                          | color-literal
                          | currency-literal
                          | date-literal
+                         | none-literal
 ```
 
 ### 4.2 Identifier Expressions
@@ -713,7 +741,7 @@ named-block          := identifier argument-list? block
 
 Functions are callable objects. They can accept:
 - An argument list: `func()` or `func(a, b)`
-- An argument list with omitted arguments: `func(, b)` uses the declared default value (or `null` if none)
+- An argument list with omitted arguments: `func(, b)` uses the declared default value (or `none` if none)
 - Named blocks (`identifier block`): `if (cond) { } else { }`
 
 **Postfix Chain Rules:**
@@ -892,7 +920,7 @@ block-body           := statement*
 Blocks can appear anywhere an expression is expected. They create a new child scope and evaluate to the value of the last statement:
 - If the last statement is an expression statement (e.g., `x + 1` or `foo()`), the block evaluates to that expression's value
 - If the last statement is a return statement (`= expr;`), the block evaluates to the returned value
-- Empty blocks or blocks ending with declaration/assignment statements evaluate to `null`
+- Empty blocks or blocks ending with declaration/assignment statements evaluate to `none`
 
 ```sard
 result = {
@@ -1489,7 +1517,7 @@ Use `@` when you need multiple names for the same data. Use `~` when you need a 
 
 Objects with `callable = true` can be invoked. Invocation:
 1. Creates a new scope whose parent is the object's parent (or the object itself).
-2. Binds arguments to parameter names. Omitted arguments use the parameter's default value if one was declared, otherwise `null`.
+2. Binds arguments to parameter names. Omitted arguments use the parameter's default value if one was declared, otherwise `none`.
 3. Executes the object's body block.
 4. Returns the block's return value.
 
@@ -2219,6 +2247,32 @@ for("hello", c) {
 // Output: h, e, l, l, o
 ```
 
+### Example 15: None Literal
+
+```sard
+x = none
+print(x)                    // none
+print(x == none)            // true
+
+// none is falsy
+if (none) {
+    print("truthy")
+} else {
+    print("falsy")          // prints "falsy"
+}
+
+maybe : (value) {
+    = if (value == none) {
+        "missing"
+    } else {
+        "got: " + string(value)
+    }
+}
+
+print(maybe(none))          // missing
+print(maybe(42))            // got: 42
+```
+
 ---
 
 ## 12. Error Handling
@@ -2392,6 +2446,9 @@ literal              := integer-literal
                         | color-literal
                         | currency-literal
                         | date-literal
+                        | none-literal
+
+none-literal         := "none"   (* case-insensitive *)
 
 argument-list        := "(" (argument ("," argument)*)? ")"
 argument             := expression?
