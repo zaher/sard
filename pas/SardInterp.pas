@@ -7,7 +7,11 @@
 interface
 
 uses
-  SysUtils, Classes, Math, DateUtils, Windows, SardTypes;
+  SysUtils, Classes, Math, DateUtils, 
+  {$ifndef fpc}
+  Windows,
+  {$endif}
+  SardTypes;
 
 type
   TInterpreter = class
@@ -19,7 +23,6 @@ type
     FExitValue: TSardValue;
     FHasExit: Boolean;
     FNoAutoCall: Boolean;
-    procedure InitBuiltins;
     function NewValue: TSardValue;
     function NewScope(Parent: TSardValue): TSardValue;
     function FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue): TSardValue;
@@ -222,11 +225,6 @@ begin
   end;
   Owner := nil;
   Result := nil;
-end;
-
-procedure TInterpreter.InitBuiltins;
-begin
-  { Builtins added in Create }
 end;
 
 procedure TInterpreter.Execute(Node: TASTNode);
@@ -1345,6 +1343,7 @@ var
   Curr: TSardValue;
   Found: Boolean;
 begin
+  Member := Default(TSardValue);
   { @expr: for lvalues, return the actual stored object reference; otherwise eval expression }
   if Node.Left = nil then
   begin

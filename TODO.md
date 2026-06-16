@@ -7,8 +7,12 @@
 --* for,in `for(x, a){...}`
 --* loop without () or with empty (), endless loop, should break using `break`
 --* Date type `0t20261019`
+--* Add null value/type like in python
+--* exit(value)
+--* Sleep(ms)
+--* Clock
 
-* print(0t2026_10_10 - 0t2026_10_11);
+* print(0t2026_10_10 - 0t2026_10_11)
 
 * Namespace, extend namespace
 * Inherited object/extend
@@ -19,5 +23,3 @@
     Round, Abs, Min, Max, Sin, Cos, Tan
 * Date
     Now, Time, Timestamp, Clock, Format
-
-* Sleep(ms)

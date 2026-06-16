@@ -4,7 +4,9 @@
 
 ## Overview
 
-Sard is a small but expressive scripting language designed for clarity, flexibility, and precision. Everything in Sard is an object — variables, control structures, and even language constructs themselves are runtime objects. You can start with dynamic typing and add strict type annotations wherever you need safety.
+Sard is a small but expressive scripting language designed for clarity, flexibility, and precision.
+
+Sard is not trying to be a generic "everyone" language — it is a BASIC/Pascal-flavored, expression-oriented scripting language for two specific audiences: kids making games and accountants doing calculations. That is a much more coherent identity.
 
 ### Key Characteristics
 
