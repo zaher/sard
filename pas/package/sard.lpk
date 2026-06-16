@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="\"/>
+    <Name Value="sard"/>
+    <Type Value="RunTimeOnly"/>
+    <Author Value="Zaher Dirkey (mostly used AI, Kimi 2.7)"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value=".."/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
+      </SearchPaths>
+      <CodeGeneration>
+        <Optimizations>
+          <OptimizationLevel Value="3"/>
+        </Optimizations>
+      </CodeGeneration>
+    </CompilerOptions>
+    <Description Value="Sard script language"/>
+    <License Value="MIT"/>
+    <Files>
+      <Item>
+        <Filename Value="..\SardLexer.pas"/>
+        <UnitName Value="SardLexer"/>
+      </Item>
+      <Item>
+        <Filename Value="..\SardParser.pas"/>
+        <UnitName Value="SardParser"/>
+      </Item>
+      <Item>
+        <Filename Value="..\SardTypes.pas"/>
+        <UnitName Value="SardTypes"/>
+      </Item>
+      <Item>
+        <Filename Value="..\SardInterp.pas"/>
+        <UnitName Value="SardInterp"/>
+      </Item>
+    </Files>
+    <RequiredPkgs>
+      <Item>
+        <PackageName Value="FCL"/>
+      </Item>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
