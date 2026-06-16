@@ -1,0 +1,4 @@
+print(clock())
+print(clock() == integer)
+c : integer = clock()
+print(c)

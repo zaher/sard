@@ -1584,6 +1584,7 @@ The following are callable objects provided by the runtime:
 | `now` | Returns the current date/time as a `date` value |
 | `timestamp` | Returns the current Unix timestamp as an `integer` |
 | `sleep` | Pauses execution for the specified number of milliseconds |
+| `clock` | Returns the system tick count as an `integer` |
 
 **Note on `else`**: `else` serves a dual role. Syntactically, `else { ... }` is parsed as a **named block** that is passed by name to the preceding callable (e.g., `if`, `while`). At the same time, `else` exists as a built-in callable object in the root scope, which is the default handler that `if` and `while` delegate to when evaluating the alternate branch. Overriding the `else` object changes the behavior of `else` blocks across all constructs.
 
@@ -2051,7 +2052,21 @@ sleep(500)    // pause for half a second
 print("end")
 ```
 
-### 9.7 Date and Time Functions
+### 9.7 Clock Function
+
+The built-in callable `clock` returns the current system tick count as an `integer`. The value is the number of milliseconds elapsed since the system started, expressed as a signed 64-bit value (the runtime stores it as an `integer` and truncates only on platforms where the native tick count is wider than the Sard integer type).
+
+```sard
+print(clock())              // system tick count in milliseconds
+print(clock() == integer)   // true
+```
+
+**Behavior:**
+- `clock()` returns the system tick count in milliseconds as an `integer`
+- The value is monotonic while the system is running; it is not related to wall-clock time and does not change with time-zone or daylight-saving adjustments
+- Returns `integer`
+
+### 9.8 Date and Time Functions
 
 The runtime provides two built-in callable objects for working with date and time, plus date literals for fixed calendar dates and times:
 
@@ -2079,7 +2094,7 @@ d : date = 0t1971_10_19_03_35_52
 print(d)                              // 1971-10-19 03:35:52
 ```
 
-### 9.8 Extending the Language
+### 9.9 Extending the Language
 
 Sard supports extensibility through callable objects and addons:
 

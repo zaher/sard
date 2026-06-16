@@ -7,7 +7,7 @@
 interface
 
 uses
-  SysUtils, Classes, Math, DateUtils, SardTypes;
+  SysUtils, Classes, Math, DateUtils, Windows, SardTypes;
 
 type
   TInterpreter = class
@@ -63,6 +63,7 @@ type
     function BuiltInNow: TSardValue;
     function BuiltInTimestamp: TSardValue;
     function BuiltInSleep(Args: array of TSardValue): TSardValue;
+    function BuiltInClock: TSardValue;
     function GetArrayElement(Arr: TSardValue; Index: Integer): TSardValue;
     procedure SetArrayElement(Arr: TSardValue; Index: Integer; Value: TSardValue);
   public
@@ -77,7 +78,7 @@ implementation
 
 constructor TInterpreter.Create;
 var
-  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, ExitObj, LenObj, NowObj, TimestampObj, SleepObj: TSardValue;
+  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, ExitObj, LenObj, NowObj, TimestampObj, SleepObj, ClockObj: TSardValue;
 
   procedure AddBuiltin(const Name: string; Obj: TSardValue);
   begin
@@ -171,6 +172,12 @@ begin
   SleepObj.Callable := True;
   SleepObj.BuiltinName := 'sleep';
   AddBuiltin('sleep', SleepObj);
+
+  ClockObj := TSardValue.Create;
+  ClockObj.Kind := vkObject;
+  ClockObj.Callable := True;
+  ClockObj.BuiltinName := 'clock';
+  AddBuiltin('clock', ClockObj);
 end;
 
 destructor TInterpreter.Destroy;
@@ -978,6 +985,8 @@ begin
           Result := BuiltInTimestamp
         else if BuiltinName = 'sleep' then
           Result := BuiltInSleep(Args)
+        else if BuiltinName = 'clock' then
+          Result := BuiltInClock
         else
           Result := CallUserCallable(Callee, Scope, CallBase, Args, Blocks);
       finally
@@ -2601,6 +2610,13 @@ begin
   SysUtils.Sleep(Ms);
   Result := NewValue;
   Result.Kind := vkNull;
+end;
+
+function TInterpreter.BuiltInClock: TSardValue;
+begin
+  Result := NewValue;
+  Result.Kind := vkInteger;
+  Result.IntValue := Int64(GetTickCount64);
 end;
 
 end.
