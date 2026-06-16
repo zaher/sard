@@ -263,10 +263,7 @@ begin
     if FBreakDepth < StartBreakDepth then Break;
   end;
   if Result = nil then
-    Result := NewValue
-  else
-    Result.AddRef; { ensure caller can release }
-  { decrement the extra ref we just added? We return with refcount 1 }
+    Result := NewValue;
 end;
 
 function TInterpreter.EvalNode(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -1105,16 +1102,19 @@ begin
           CloneValue := Value.Clone(True);
           TSardValue(Owner2.Members.Objects[Idx]).Release;
           Owner2.Members.Objects[Idx] := CloneValue;
-          CloneValue.AddRef; { SetMember would AddRef, but we assign directly }
+          CloneValue.AddRef; { member list owns a reference }
+          CloneValue.Release; { release the local creation reference }
         end;
         Result := Value.Clone(False);
       end
       else
       begin
+        CloneValue := Value.Clone(True);
         if Owner = nil then
-          Scope.SetMember(Name, Value.Clone(True))
+          Scope.SetMember(Name, CloneValue)
         else
-          Owner.SetMember(Name, Value.Clone(True));
+          Owner.SetMember(Name, CloneValue);
+        CloneValue.Release;
         Result := Value.Clone(False);
       end;
     end;
@@ -1966,12 +1966,10 @@ begin
     FHasExit := False;
     try
       Result := EvalStatements(Callable.Body, BodyScope);
-      if Result <> nil then Result.AddRef;
       if FHasExit then
       begin
         if Result <> nil then Result.Release;
         Result := FExitValue;
-        if Result <> nil then Result.AddRef;
         FExitValue := nil;
         FHasExit := False;
       end;
@@ -2030,7 +2028,6 @@ var
     FHasReturn := False;
     try
       Result := EvalStatements(Body, NewScopeObj);
-      if Result <> nil then Result.AddRef;
     finally
       NewScopeObj.Release;
       if FReturnValue <> nil then FReturnValue.Release;
@@ -2207,7 +2204,6 @@ begin
       FHasReturn := False;
       try
         BodyResult := EvalStatements(BodyBlock, NewScopeObj);
-        if BodyResult <> nil then BodyResult.AddRef;
       finally
         NewScopeObj.Release;
         if FReturnValue <> nil then FReturnValue.Release;
@@ -2325,7 +2321,6 @@ begin
         FHasReturn := False;
         try
           BodyResult := EvalStatements(BodyBlock, NewScopeObj);
-          if BodyResult <> nil then BodyResult.AddRef;
         finally
           NewScopeObj.Release;
           if FReturnValue <> nil then FReturnValue.Release;
@@ -2365,7 +2360,6 @@ begin
         FHasReturn := False;
         try
           BodyResult := EvalStatements(BodyBlock, NewScopeObj);
-          if BodyResult <> nil then BodyResult.AddRef;
         finally
           NewScopeObj.Release;
           if FReturnValue <> nil then FReturnValue.Release;
@@ -2454,7 +2448,6 @@ begin
           FHasReturn := False;
           try
             BodyResult := EvalStatements(BodyBlock, NewScopeObj);
-            if BodyResult <> nil then BodyResult.AddRef;
           finally
             NewScopeObj.Release;
             if FReturnValue <> nil then FReturnValue.Release;
@@ -2497,7 +2490,6 @@ begin
         FHasReturn := False;
         try
           BodyResult := EvalStatements(BodyBlock, NewScopeObj);
-          if BodyResult <> nil then BodyResult.AddRef;
         finally
           NewScopeObj.Release;
           if FReturnValue <> nil then FReturnValue.Release;
