@@ -62,6 +62,7 @@ type
     function BuiltInLen(Args: array of TSardValue): TSardValue;
     function BuiltInNow: TSardValue;
     function BuiltInTimestamp: TSardValue;
+    function BuiltInSleep(Args: array of TSardValue): TSardValue;
     function GetArrayElement(Arr: TSardValue; Index: Integer): TSardValue;
     procedure SetArrayElement(Arr: TSardValue; Index: Integer; Value: TSardValue);
   public
@@ -76,7 +77,7 @@ implementation
 
 constructor TInterpreter.Create;
 var
-  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, ExitObj, LenObj, NowObj, TimestampObj: TSardValue;
+  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, ExitObj, LenObj, NowObj, TimestampObj, SleepObj: TSardValue;
 
   procedure AddBuiltin(const Name: string; Obj: TSardValue);
   begin
@@ -164,6 +165,12 @@ begin
   TimestampObj.Callable := True;
   TimestampObj.BuiltinName := 'timestamp';
   AddBuiltin('timestamp', TimestampObj);
+
+  SleepObj := TSardValue.Create;
+  SleepObj.Kind := vkObject;
+  SleepObj.Callable := True;
+  SleepObj.BuiltinName := 'sleep';
+  AddBuiltin('sleep', SleepObj);
 end;
 
 destructor TInterpreter.Destroy;
@@ -969,6 +976,8 @@ begin
           Result := BuiltInNow
         else if BuiltinName = 'timestamp' then
           Result := BuiltInTimestamp
+        else if BuiltinName = 'sleep' then
+          Result := BuiltInSleep(Args)
         else
           Result := CallUserCallable(Callee, Scope, CallBase, Args, Blocks);
       finally
@@ -2574,6 +2583,24 @@ begin
   Result := NewValue;
   Result.Kind := vkInteger;
   Result.IntValue := DateTimeToUnix(Now);
+end;
+
+function TInterpreter.BuiltInSleep(Args: array of TSardValue): TSardValue;
+var
+  Ms: Int64;
+begin
+  if Length(Args) < 1 then
+    raise ESardError.Create('sleep requires one argument');
+  if Args[0].Kind = vkInteger then
+    Ms := Args[0].IntValue
+  else if Args[0].Kind = vkNumber then
+    Ms := Trunc(Args[0].FloatValue)
+  else
+    raise ESardError.CreateFmt('sleep requires an integer, got %s', [Args[0].KindName]);
+  if Ms < 0 then Ms := 0;
+  SysUtils.Sleep(Ms);
+  Result := NewValue;
+  Result.Kind := vkNull;
 end;
 
 end.

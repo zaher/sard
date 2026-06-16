@@ -1,0 +1,3 @@
+print("before sleep")
+sleep(1000)   // one second
+print("after sleep")

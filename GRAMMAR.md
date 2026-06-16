@@ -1583,6 +1583,7 @@ The following are callable objects provided by the runtime:
 | `len` | Returns the length of an array or string |
 | `now` | Returns the current date/time as a `date` value |
 | `timestamp` | Returns the current Unix timestamp as an `integer` |
+| `sleep` | Pauses execution for the specified number of milliseconds |
 
 **Note on `else`**: `else` serves a dual role. Syntactically, `else { ... }` is parsed as a **named block** that is passed by name to the preceding callable (e.g., `if`, `while`). At the same time, `else` exists as a built-in callable object in the root scope, which is the default handler that `if` and `while` delegate to when evaluating the alternate branch. Overriding the `else` object changes the behavior of `else` blocks across all constructs.
 
@@ -2031,7 +2032,26 @@ print(len(multiline))    // 11
 - `len(string)` returns the string length (in characters) as an `integer`
 - Passing any other type raises a runtime error
 
-### 9.6 Date and Time Functions
+### 9.6 Sleep Function
+
+The built-in callable `sleep` pauses execution for a specified number of milliseconds. It accepts one integer argument and returns `none`.
+
+```sard
+sleep(1000)   // pause for one second
+```
+
+**Behavior:**
+- `sleep(milliseconds)` suspends the current thread for at least the requested duration
+- The argument must be an `integer` (negative values are treated as zero)
+- Returns `none`
+
+```sard
+print("start")
+sleep(500)    // pause for half a second
+print("end")
+```
+
+### 9.7 Date and Time Functions
 
 The runtime provides two built-in callable objects for working with date and time, plus date literals for fixed calendar dates and times:
 
@@ -2059,7 +2079,7 @@ d : date = 0t1971_10_19_03_35_52
 print(d)                              // 1971-10-19 03:35:52
 ```
 
-### 9.7 Extending the Language
+### 9.8 Extending the Language
 
 Sard supports extensibility through callable objects and addons:
 
