@@ -11,15 +11,13 @@
 --* exit(value)
 --* Sleep(ms)
 --* Clock
+* Math functions (Round, Abs, Min, Max, Sin, Cos, Tan)
 
 * print(0t2026_10_10 - 0t2026_10_11)
+* Date function in core (Now, Time, Timestamp, Clock, Format)
 
 * Namespace, extend namespace
 * Inherited object/extend
 * constructors, destructors
-* named params
+* Named params
 
-* Math functions
-    Round, Abs, Min, Max, Sin, Cos, Tan
-* Date
-    Now, Time, Timestamp, Clock, Format

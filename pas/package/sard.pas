@@ -8,7 +8,7 @@ unit sard;
 interface
 
 uses
-  SardLexer, SardParser, SardTypes, SardInterp;
+  SardLexer, SardParser, SardTypes, SardInterp, SardLibrary, SardMath;
 
 implementation
 

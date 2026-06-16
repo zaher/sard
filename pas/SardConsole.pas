@@ -7,7 +7,8 @@ unit SardConsole;
 interface
 
 uses
-  SysUtils, Classes, SardTypes, SardLexer, SardParser, SardInterp;
+  SysUtils, Classes,
+  SardTypes, SardLexer, SardParser, SardInterp, SardMath;
 
 procedure RunConsole;
 
@@ -46,6 +47,7 @@ begin
       try
         Interp := TInterpreter.Create;
         try
+          TMathLibrary.Create.RegisterIn(Interp);
           Interp.Execute(AST);
         finally
           Interp.Free;

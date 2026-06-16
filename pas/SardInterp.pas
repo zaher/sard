@@ -23,11 +23,7 @@ type
     FExitValue: TSardValue;
     FHasExit: Boolean;
     FNoAutoCall: Boolean;
-    function NewValue: TSardValue;
-    function NewScope(Parent: TSardValue): TSardValue;
     function FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue): TSardValue;
-    function EvalStatements(Node: TASTNode; Scope: TSardValue): TSardValue;
-    function EvalExpression(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalNode(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalLiteral(Node: TASTNode): TSardValue;
     function EvalIdentifier(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -51,44 +47,58 @@ type
     function EvalTypeCast(Node: TASTNode; Scope: TSardValue): TSardValue;
     function ApplyOperator(const Op: string; Left, Right: TSardValue): TSardValue;
     function ApplyUnary(const Op: string; Operand: TSardValue): TSardValue;
-    function CoerceValue(Value: TSardValue; const TargetType: string): TSardValue;
-    function IsTruthy(Value: TSardValue): Boolean;
     function ObjectsEqual(A, B: TSardValue): Boolean;
     function CompareValues(A, B: TSardValue): Integer;
-    function BuiltInPrint(Scope: TSardValue; Args: array of TSardValue): TSardValue;
-    function BuiltInIf(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
-    function BuiltInWhile(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
-    function BuiltInLoop(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
-    function BuiltInFor(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
-    function BuiltInBreak(Scope: TSardValue): TSardValue;
-    function BuiltInExit(Scope: TSardValue; Args: array of TSardValue): TSardValue;
-    function BuiltInLen(Args: array of TSardValue): TSardValue;
-    function BuiltInNow: TSardValue;
-    function BuiltInTimestamp: TSardValue;
-    function BuiltInSleep(Args: array of TSardValue): TSardValue;
-    function BuiltInClock: TSardValue;
     function GetArrayElement(Arr: TSardValue; Index: Integer): TSardValue;
     procedure SetArrayElement(Arr: TSardValue; Index: Integer; Value: TSardValue);
   public
     constructor Create;
     destructor Destroy; override;
     procedure Execute(Node: TASTNode);
+
+    { Registration ----------------------------------------------------------- }
+    procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler); overload;
+    procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler;
+      const LazyIndexes: array of Integer); overload;
+
+    { Shared services exposed to libraries ----------------------------------- }
+    function NewValue: TSardValue;
+    function NewScope(Parent: TSardValue): TSardValue;
+    function EvalExpression(Node: TASTNode; Scope: TSardValue): TSardValue;
+    function EvalStatements(Node: TASTNode; Scope: TSardValue): TSardValue;
+    function ExecuteBlock(Body: TASTNode; Scope: TSardValue): TSardValue;
+    function CoerceValue(Value: TSardValue; const TargetType: string): TSardValue;
+    function IsTruthy(Value: TSardValue): Boolean;
+
+    { Execution state exposed to control-flow builtins ----------------------- }
+    property BreakDepth: Integer read FBreakDepth write FBreakDepth;
+    property ReturnValue: TSardValue read FReturnValue write FReturnValue;
+    property HasReturn: Boolean read FHasReturn write FHasReturn;
+    property ExitValue: TSardValue read FExitValue write FExitValue;
+    property HasExit: Boolean read FHasExit write FHasExit;
   end;
 
 implementation
+
+{ Forward declarations of core built-in handlers }
+function BuiltInPrint(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInIf(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInWhile(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInLoop(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInFor(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInBreak(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInExit(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInLen(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInNow(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInTimestamp(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInSleep(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInClock(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
 
 { TInterpreter }
 
 constructor TInterpreter.Create;
 var
-  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, ExitObj, LenObj, NowObj, TimestampObj, SleepObj, ClockObj: TSardValue;
-
-  procedure AddBuiltin(const Name: string; Obj: TSardValue);
-  begin
-    FRoot.SetMember(Name, Obj);
-    Obj.Release;
-  end;
-
+  TrueObj, FalseObj: TSardValue;
 begin
   inherited;
   FRoot := TSardValue.Create;
@@ -100,87 +110,32 @@ begin
   FHasExit := False;
   FNoAutoCall := False;
 
+  { Constants }
   TrueObj := TSardValue.Create;
   TrueObj.Kind := vkBoolean;
   TrueObj.BoolValue := True;
-  AddBuiltin('true', TrueObj);
+  FRoot.SetMember('true', TrueObj);
+  TrueObj.Release;
 
   FalseObj := TSardValue.Create;
   FalseObj.Kind := vkBoolean;
   FalseObj.BoolValue := False;
-  AddBuiltin('false', FalseObj);
+  FRoot.SetMember('false', FalseObj);
+  FalseObj.Release;
 
-  PrintObj := TSardValue.Create;
-  PrintObj.Kind := vkObject;
-  PrintObj.Callable := True;
-  PrintObj.BuiltinName := 'print';
-  AddBuiltin('print', PrintObj);
-
-  IfObj := TSardValue.Create;
-  IfObj.Kind := vkObject;
-  IfObj.Callable := True;
-  IfObj.BuiltinName := 'if';
-  AddBuiltin('if', IfObj);
-
-  WhileObj := TSardValue.Create;
-  WhileObj.Kind := vkObject;
-  WhileObj.Callable := True;
-  WhileObj.BuiltinName := 'while';
-  AddBuiltin('while', WhileObj);
-
-  LoopObj := TSardValue.Create;
-  LoopObj.Kind := vkObject;
-  LoopObj.Callable := True;
-  LoopObj.BuiltinName := 'loop';
-  AddBuiltin('loop', LoopObj);
-
-  ForObj := TSardValue.Create;
-  ForObj.Kind := vkObject;
-  ForObj.Callable := True;
-  ForObj.BuiltinName := 'for';
-  AddBuiltin('for', ForObj);
-
-  BreakObj := TSardValue.Create;
-  BreakObj.Kind := vkObject;
-  BreakObj.Callable := True;
-  BreakObj.BuiltinName := 'break';
-  AddBuiltin('break', BreakObj);
-
-  ExitObj := TSardValue.Create;
-  ExitObj.Kind := vkObject;
-  ExitObj.Callable := True;
-  ExitObj.BuiltinName := 'exit';
-  AddBuiltin('exit', ExitObj);
-
-  LenObj := TSardValue.Create;
-  LenObj.Kind := vkObject;
-  LenObj.Callable := True;
-  LenObj.BuiltinName := 'len';
-  AddBuiltin('len', LenObj);
-
-  NowObj := TSardValue.Create;
-  NowObj.Kind := vkObject;
-  NowObj.Callable := True;
-  NowObj.BuiltinName := 'now';
-  AddBuiltin('now', NowObj);
-
-  TimestampObj := TSardValue.Create;
-  TimestampObj.Kind := vkObject;
-  TimestampObj.Callable := True;
-  TimestampObj.BuiltinName := 'timestamp';
-  AddBuiltin('timestamp', TimestampObj);
-
-  SleepObj := TSardValue.Create;
-  SleepObj.Kind := vkObject;
-  SleepObj.Callable := True;
-  SleepObj.BuiltinName := 'sleep';
-  AddBuiltin('sleep', SleepObj);
-
-  ClockObj := TSardValue.Create;
-  ClockObj.Kind := vkObject;
-  ClockObj.Callable := True;
-  ClockObj.BuiltinName := 'clock';
-  AddBuiltin('clock', ClockObj);
+  { Core builtins }
+  RegisterBuiltin('print',     @BuiltInPrint);
+  RegisterBuiltin('if',        @BuiltInIf);
+  RegisterBuiltin('while',     @BuiltInWhile, [0]);
+  RegisterBuiltin('loop',      @BuiltInLoop, [1]);
+  RegisterBuiltin('for',       @BuiltInFor, [1]);
+  RegisterBuiltin('break',     @BuiltInBreak);
+  RegisterBuiltin('exit',      @BuiltInExit);
+  RegisterBuiltin('len',       @BuiltInLen);
+  RegisterBuiltin('now',       @BuiltInNow);
+  RegisterBuiltin('timestamp', @BuiltInTimestamp);
+  RegisterBuiltin('sleep',     @BuiltInSleep);
+  RegisterBuiltin('clock',     @BuiltInClock);
 end;
 
 destructor TInterpreter.Destroy;
@@ -236,6 +191,51 @@ begin
   FHasExit := False;
   Ret := EvalStatements(Node, FRoot);
   if Ret <> nil then Ret.Release;
+end;
+
+procedure TInterpreter.RegisterBuiltin(const Name: string; Handler: TBuiltinHandler);
+begin
+  RegisterBuiltin(Name, Handler, []);
+end;
+
+procedure TInterpreter.RegisterBuiltin(const Name: string; Handler: TBuiltinHandler;
+  const LazyIndexes: array of Integer);
+var
+  Obj: TSardValue;
+  I: Integer;
+begin
+  Obj := TSardValue.Create;
+  Obj.Kind := vkObject;
+  Obj.Callable := True;
+  Obj.BuiltinHandler := Handler;
+  SetLength(Obj.LazyArgIndexes, Length(LazyIndexes));
+  for I := 0 to High(LazyIndexes) do
+    Obj.LazyArgIndexes[I] := LazyIndexes[I];
+  FRoot.SetMember(Name, Obj);
+  Obj.Release;
+end;
+
+function TInterpreter.ExecuteBlock(Body: TASTNode; Scope: TSardValue): TSardValue;
+var
+  NewScopeObj: TSardValue;
+  SavedReturn: TSardValue;
+  SavedHasReturn: Boolean;
+begin
+  Result := nil;
+  if Body = nil then Exit;
+  NewScopeObj := NewScope(Scope);
+  SavedReturn := FReturnValue;
+  SavedHasReturn := FHasReturn;
+  FReturnValue := nil;
+  FHasReturn := False;
+  try
+    Result := EvalStatements(Body, NewScopeObj);
+  finally
+    NewScopeObj.Release;
+    if FReturnValue <> nil then FReturnValue.Release;
+    FReturnValue := SavedReturn;
+    FHasReturn := SavedHasReturn;
+  end;
 end;
 
 function TInterpreter.EvalExpression(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -842,7 +842,6 @@ var
   ArgNodes: array of TASTNode;
   Blocks: TASTNode;
   I, J: Integer;
-  BuiltinName: string;
   ArgListNode: TASTNode;
   ArgsList: TList;
   ArgNodeList: TList;
@@ -850,17 +849,22 @@ var
   LazyCond: TSardValue;
   CallBase: TSardValue;
 
-  function IsBuiltinCallable(Obj: TSardValue; out Name: string): Boolean;
+  function IsBuiltinCallable(Obj: TSardValue): Boolean;
   begin
-    Name := '';
+    Result := (Obj <> nil) and Obj.Callable and Assigned(Obj.BuiltinHandler);
+  end;
+
+  function NeedsLazyArg(const Callee: TSardValue; Index: Integer): Boolean;
+  var
+    K: Integer;
+  begin
     Result := False;
-    if Obj = nil then Exit;
-    if not Obj.Callable then Exit;
-    if Obj.BuiltinName <> '' then
-    begin
-      Name := Obj.BuiltinName;
-      Result := True;
-    end;
+    for K := 0 to High(Callee.LazyArgIndexes) do
+      if Callee.LazyArgIndexes[K] = Index then
+      begin
+        Result := True;
+        Exit;
+      end;
   end;
 
 begin
@@ -912,10 +916,8 @@ begin
       if not Callee.Callable then
         raise ESardError.Create('Object is not callable');
 
-      IsBuiltinCallable(Callee, BuiltinName);
-
       try
-        { Build argument values; for builtin 'while', keep condition as lazy node }
+        { Build argument values; lazy argument positions are passed as vkLazy AST wrappers }
         ArgNodes := nil;
         SetLength(ArgNodes, ArgNodeList.Count);
         for I := 0 to ArgNodeList.Count - 1 do
@@ -927,21 +929,7 @@ begin
         begin
           if ArgNodes[I] = nil then
             Args[I] := nil
-          else if (BuiltinName = 'while') and (I = 0) then
-          begin
-            LazyCond := NewValue;
-            LazyCond.Kind := vkLazy;
-            LazyCond.LazyNode := ArgNodes[I];
-            Args[I] := LazyCond;
-          end
-          else if (BuiltinName = 'for') and (I = 1) then
-          begin
-            LazyCond := NewValue;
-            LazyCond.Kind := vkLazy;
-            LazyCond.LazyNode := ArgNodes[I];
-            Args[I] := LazyCond;
-          end
-          else if (BuiltinName = 'loop') and (I = 1) then
+          else if NeedsLazyArg(Callee, I) then
           begin
             LazyCond := NewValue;
             LazyCond.Kind := vkLazy;
@@ -953,7 +941,7 @@ begin
         end;
 
         { Builtins cannot distinguish omitted arguments - supply null for empty slots }
-        if BuiltinName <> '' then
+        if IsBuiltinCallable(Callee) then
           for I := 0 to High(Args) do
             if Args[I] = nil then
             begin
@@ -961,30 +949,8 @@ begin
               Args[I].Kind := vkNull;
             end;
 
-        if BuiltinName = 'print' then
-          Result := BuiltInPrint(Scope, Args)
-        else if BuiltinName = 'if' then
-          Result := BuiltInIf(Scope, Args, Blocks)
-        else if BuiltinName = 'while' then
-          Result := BuiltInWhile(Scope, Args, Blocks)
-        else if BuiltinName = 'loop' then
-          Result := BuiltInLoop(Scope, Args, Blocks)
-        else if BuiltinName = 'for' then
-          Result := BuiltInFor(Scope, Args, Blocks)
-        else if BuiltinName = 'break' then
-          Result := BuiltInBreak(Scope)
-        else if BuiltinName = 'exit' then
-          Result := BuiltInExit(Scope, Args)
-        else if BuiltinName = 'len' then
-          Result := BuiltInLen(Args)
-        else if BuiltinName = 'now' then
-          Result := BuiltInNow
-        else if BuiltinName = 'timestamp' then
-          Result := BuiltInTimestamp
-        else if BuiltinName = 'sleep' then
-          Result := BuiltInSleep(Args)
-        else if BuiltinName = 'clock' then
-          Result := BuiltInClock
+        if IsBuiltinCallable(Callee) then
+          Result := Callee.BuiltinHandler(Self, Scope, Args, Blocks)
         else
           Result := CallUserCallable(Callee, Scope, CallBase, Args, Blocks);
       finally
@@ -2005,11 +1971,13 @@ begin
   end;
 end;
 
-function TInterpreter.BuiltInPrint(Scope: TSardValue; Args: array of TSardValue): TSardValue;
+function BuiltInPrint(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   I: Integer;
   S: string;
+  InterpObj: TInterpreter;
 begin
+  InterpObj := TInterpreter(Interp);
   S := '';
   for I := 0 to High(Args) do
   begin
@@ -2017,46 +1985,31 @@ begin
     S := S + Args[I].AsString;
   end;
   WriteLn(S);
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkNull;
 end;
 
-function TInterpreter.BuiltInIf(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInIf(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   CondValue: Boolean;
   I: Integer;
   BlockNode: TASTNode;
   BodyBlock: TASTNode;
-  NewScopeObj: TSardValue;
-  SavedReturn: TSardValue;
-  SavedHasReturn: Boolean;
-
-  Ret: TSardValue;
   ElseIfCond: TSardValue;
+  InterpObj: TInterpreter;
 
-  function ExecuteBlock(Body: TASTNode): TSardValue;
+  function ExecuteBody(Body: TASTNode): TSardValue;
   begin
-    Result := nil;
-    if Body = nil then Exit;
-    NewScopeObj := NewScope(Scope);
-    SavedReturn := FReturnValue;
-    SavedHasReturn := FHasReturn;
-    FReturnValue := nil;
-    FHasReturn := False;
-    try
-      Result := EvalStatements(Body, NewScopeObj);
-    finally
-      NewScopeObj.Release;
-      if FReturnValue <> nil then FReturnValue.Release;
-      FReturnValue := SavedReturn;
-      FHasReturn := SavedHasReturn;
-    end;
+    Result := InterpObj.ExecuteBlock(Body, Scope);
+    if Result = nil then
+      Result := InterpObj.NewValue;
   end;
 
 begin
+  InterpObj := TInterpreter(Interp);
   CondValue := True;
   if Length(Args) > 0 then
-    CondValue := IsTruthy(Args[0]);
+    CondValue := InterpObj.IsTruthy(Args[0]);
 
   BodyBlock := nil;
   if Blocks <> nil then
@@ -2069,7 +2022,7 @@ begin
     end;
   end;
 
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkNull;
 
   if CondValue then
@@ -2077,11 +2030,7 @@ begin
     if BodyBlock <> nil then
     begin
       Result.Release;
-      Ret := ExecuteBlock(BodyBlock);
-      if Ret <> nil then
-        Result := Ret
-      else
-        Result := NewValue;
+      Result := ExecuteBody(BodyBlock);
     end;
   end
   else if Blocks <> nil then
@@ -2093,16 +2042,12 @@ begin
         Continue;
       if LowerName(BlockNode.Name) = 'else-if' then
       begin
-        ElseIfCond := EvalExpression(BlockNode.Left, Scope);
+        ElseIfCond := InterpObj.EvalExpression(BlockNode.Left, Scope);
         try
-          if IsTruthy(ElseIfCond) then
+          if InterpObj.IsTruthy(ElseIfCond) then
           begin
             Result.Release;
-            Ret := ExecuteBlock(BlockNode);
-            if Ret <> nil then
-              Result := Ret
-            else
-              Result := NewValue;
+            Result := ExecuteBody(BlockNode);
             Break;
           end;
         finally
@@ -2112,31 +2057,24 @@ begin
       else if LowerName(BlockNode.Name) = 'else' then
       begin
         Result.Release;
-        Ret := ExecuteBlock(BlockNode);
-        if Ret <> nil then
-          Result := Ret
-        else
-          Result := NewValue;
+        Result := ExecuteBody(BlockNode);
         Break;
       end;
     end;
   end;
 end;
 
-function TInterpreter.BuiltInWhile(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInWhile(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   CondValue: Boolean;
   I: Integer;
   BlockNode: TASTNode;
   BodyBlock, ElseBlock: TASTNode;
-  NewScopeObj: TSardValue;
-  SavedReturn: TSardValue;
-  SavedHasReturn: Boolean;
-
   Ret: TSardValue;
   HasCondition: Boolean;
   LoopDepth: Integer;
   BodyResult: TSardValue;
+  InterpObj: TInterpreter;
 
   function EvalCondition: Boolean;
   var
@@ -2146,15 +2084,15 @@ var
     begin
       if (Length(Args) > 0) and (Args[0] <> nil) and (Args[0].Kind = vkLazy) then
       begin
-        CondVal := EvalExpression(Args[0].LazyNode, Scope);
+        CondVal := InterpObj.EvalExpression(Args[0].LazyNode, Scope);
         try
-          Result := IsTruthy(CondVal);
+          Result := InterpObj.IsTruthy(CondVal);
         finally
           CondVal.Release;
         end;
       end
       else if Length(Args) > 0 then
-        Result := IsTruthy(Args[0])
+        Result := InterpObj.IsTruthy(Args[0])
       else
         Result := True;
     end
@@ -2163,6 +2101,7 @@ var
   end;
 
 begin
+  InterpObj := TInterpreter(Interp);
   HasCondition := Length(Args) > 0;
   BodyBlock := nil;
   ElseBlock := nil;
@@ -2178,7 +2117,7 @@ begin
     end;
   end;
 
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkNull;
 
   CondValue := EvalCondition;
@@ -2188,65 +2127,40 @@ begin
     if ElseBlock <> nil then
     begin
       Result.Release;
-      NewScopeObj := NewScope(Scope);
-      SavedReturn := FReturnValue;
-      SavedHasReturn := FHasReturn;
-      FReturnValue := nil;
-      FHasReturn := False;
-      try
-        Ret := EvalStatements(ElseBlock, NewScopeObj);
-        if Ret <> nil then Ret.AddRef;
-      finally
-        NewScopeObj.Release;
-        if FReturnValue <> nil then FReturnValue.Release;
-        FReturnValue := SavedReturn;
-        FHasReturn := SavedHasReturn;
-      end;
-      if Ret <> nil then Result := Ret else Result := NewValue;
+      Ret := InterpObj.ExecuteBlock(ElseBlock, Scope);
+      if Ret <> nil then Result := Ret else Result := InterpObj.NewValue;
     end;
     Exit;
   end;
 
   if BodyBlock = nil then Exit;
 
-  Inc(FBreakDepth);
-  LoopDepth := FBreakDepth;
+  InterpObj.BreakDepth := InterpObj.BreakDepth + 1;
+  LoopDepth := InterpObj.BreakDepth;
   try
     while EvalCondition do
     begin
-      NewScopeObj := NewScope(Scope);
-      SavedReturn := FReturnValue;
-      SavedHasReturn := FHasReturn;
-      FReturnValue := nil;
-      FHasReturn := False;
-      try
-        BodyResult := EvalStatements(BodyBlock, NewScopeObj);
-      finally
-        NewScopeObj.Release;
-        if FReturnValue <> nil then FReturnValue.Release;
-        FReturnValue := SavedReturn;
-        FHasReturn := SavedHasReturn;
-      end;
+      BodyResult := InterpObj.ExecuteBlock(BodyBlock, Scope);
       if BodyResult <> nil then
       begin
         Result.Release;
         Result := BodyResult;
       end;
-      if FBreakDepth < LoopDepth then
+      if InterpObj.BreakDepth < LoopDepth then
       begin
-        FBreakDepth := LoopDepth;
+        InterpObj.BreakDepth := LoopDepth;
         Break;
       end;
-      if FHasReturn then Break;
-      if FHasExit then Break;
+      if InterpObj.HasReturn then Break;
+      if InterpObj.HasExit then Break;
     end;
   finally
-    if FBreakDepth >= LoopDepth then
-      Dec(FBreakDepth);
+    if InterpObj.BreakDepth >= LoopDepth then
+      InterpObj.BreakDepth := InterpObj.BreakDepth - 1;
   end;
 end;
 
-function TInterpreter.BuiltInLoop(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInLoop(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   Count: Int64;
   CountKnown: Boolean;
@@ -2264,7 +2178,43 @@ var
   VarName: string;
   HaveVarName: Boolean;
   Iteration: Int64;
+  InterpObj: TInterpreter;
+
+  function BodyFinished: Boolean;
+  begin
+    Result := False;
+    if InterpObj.BreakDepth < LoopDepth then
+    begin
+      InterpObj.BreakDepth := LoopDepth;
+      Result := True;
+      Exit;
+    end;
+    if InterpObj.HasReturn then Result := True;
+    if InterpObj.HasExit then Result := True;
+  end;
+
+  procedure ExecuteBody(IterationScope: TSardValue);
+  begin
+    SavedReturn := InterpObj.ReturnValue;
+    SavedHasReturn := InterpObj.HasReturn;
+    InterpObj.ReturnValue := nil;
+    InterpObj.HasReturn := False;
+    try
+      BodyResult := InterpObj.EvalStatements(BodyBlock, IterationScope);
+    finally
+      if InterpObj.ReturnValue <> nil then InterpObj.ReturnValue.Release;
+      InterpObj.ReturnValue := SavedReturn;
+      InterpObj.HasReturn := SavedHasReturn;
+    end;
+    if BodyResult <> nil then
+    begin
+      Result.Release;
+      Result := BodyResult;
+    end;
+  end;
+
 begin
+  InterpObj := TInterpreter(Interp);
   BodyBlock := nil;
   if Blocks <> nil then
   begin
@@ -2277,7 +2227,7 @@ begin
   end;
 
   // Determine count. When no argument is supplied (loop { ... } or loop() { ... })
-  //  the loop runs forever. A supplied count of 0 or negative still skips the body. 
+  //  the loop runs forever. A supplied count of 0 or negative still skips the body.
   CountKnown := False;
   Count := 0;
   HaveVarName := False;
@@ -2293,7 +2243,7 @@ begin
         Count := Trunc(CountObj.FloatValue)
       else if CountObj.Kind = vkString then
       begin
-        Coerced := CoerceValue(CountObj, 'integer');
+        Coerced := InterpObj.CoerceValue(CountObj, 'integer');
         try
           Count := Coerced.IntValue;
         finally
@@ -2319,91 +2269,55 @@ begin
       raise ESardError.Create('loop second argument must be a variable name');
   end;
 
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkNull;
 
   if BodyBlock = nil then Exit;
 
-  Inc(FBreakDepth);
-  LoopDepth := FBreakDepth;
+  InterpObj.BreakDepth := InterpObj.BreakDepth + 1;
+  LoopDepth := InterpObj.BreakDepth;
   try
     if not CountKnown then
     begin
       while True do
       begin
-        NewScopeObj := NewScope(Scope);
-        SavedReturn := FReturnValue;
-        SavedHasReturn := FHasReturn;
-        FReturnValue := nil;
-        FHasReturn := False;
+        NewScopeObj := InterpObj.NewScope(Scope);
         try
-          BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+          ExecuteBody(NewScopeObj);
         finally
           NewScopeObj.Release;
-          if FReturnValue <> nil then FReturnValue.Release;
-          FReturnValue := SavedReturn;
-          FHasReturn := SavedHasReturn;
         end;
-        if BodyResult <> nil then
-        begin
-          Result.Release;
-          Result := BodyResult;
-        end;
-        if FBreakDepth < LoopDepth then
-        begin
-          FBreakDepth := LoopDepth;
-          Break;
-        end;
-        if FHasReturn then Break;
-        if FHasExit then Break;
+        if BodyFinished then Break;
       end;
     end
     else
     begin
       for Iteration := 0 to Count - 1 do
       begin
-        NewScopeObj := NewScope(Scope);
+        NewScopeObj := InterpObj.NewScope(Scope);
         if HaveVarName then
         begin
-          IndexValue := NewValue;
+          IndexValue := InterpObj.NewValue;
           IndexValue.Kind := vkInteger;
           IndexValue.IntValue := Iteration;
           NewScopeObj.SetMember(VarName, IndexValue);
           IndexValue.Release;
         end;
-        SavedReturn := FReturnValue;
-        SavedHasReturn := FHasReturn;
-        FReturnValue := nil;
-        FHasReturn := False;
         try
-          BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+          ExecuteBody(NewScopeObj);
         finally
           NewScopeObj.Release;
-          if FReturnValue <> nil then FReturnValue.Release;
-          FReturnValue := SavedReturn;
-          FHasReturn := SavedHasReturn;
         end;
-        if BodyResult <> nil then
-        begin
-          Result.Release;
-          Result := BodyResult;
-        end;
-        if FBreakDepth < LoopDepth then
-        begin
-          FBreakDepth := LoopDepth;
-          Break;
-        end;
-        if FHasReturn then Break;
-        if FHasExit then Break;
+        if BodyFinished then Break;
       end;
     end;
   finally
-    if FBreakDepth >= LoopDepth then
-      Dec(FBreakDepth);
+    if InterpObj.BreakDepth >= LoopDepth then
+      InterpObj.BreakDepth := InterpObj.BreakDepth - 1;
   end;
 end;
 
-function TInterpreter.BuiltInFor(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInFor(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   I: Integer;
   BlockNode: TASTNode;
@@ -2419,7 +2333,43 @@ var
   Ch: Char;
   LenValue: Integer;
   StrValue: string;
+  InterpObj: TInterpreter;
+
+  procedure ExecuteBody(IterationScope: TSardValue);
+  begin
+    SavedReturn := InterpObj.ReturnValue;
+    SavedHasReturn := InterpObj.HasReturn;
+    InterpObj.ReturnValue := nil;
+    InterpObj.HasReturn := False;
+    try
+      BodyResult := InterpObj.EvalStatements(BodyBlock, IterationScope);
+    finally
+      if InterpObj.ReturnValue <> nil then InterpObj.ReturnValue.Release;
+      InterpObj.ReturnValue := SavedReturn;
+      InterpObj.HasReturn := SavedHasReturn;
+    end;
+    if BodyResult <> nil then
+    begin
+      Result.Release;
+      Result := BodyResult;
+    end;
+  end;
+
+  function BodyFinished: Boolean;
+  begin
+    Result := False;
+    if InterpObj.BreakDepth < LoopDepth then
+    begin
+      InterpObj.BreakDepth := LoopDepth;
+      Result := True;
+      Exit;
+    end;
+    if InterpObj.HasReturn then Result := True;
+    if InterpObj.HasExit then Result := True;
+  end;
+
 begin
+  InterpObj := TInterpreter(Interp);
   BodyBlock := nil;
   if Blocks <> nil then
   begin
@@ -2443,13 +2393,13 @@ begin
 
   VarName := LowerName(Args[1].LazyNode.Name);
 
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkNull;
 
   if BodyBlock = nil then Exit;
 
-  Inc(FBreakDepth);
-  LoopDepth := FBreakDepth;
+  InterpObj.BreakDepth := InterpObj.BreakDepth + 1;
+  LoopDepth := InterpObj.BreakDepth;
   try
     if Container.Kind = vkArray then
     begin
@@ -2457,32 +2407,14 @@ begin
       begin
         ElemValue := TSardValue(Container.ArrayItems[I]).Clone(True);
         try
-          NewScopeObj := NewScope(Scope);
+          NewScopeObj := InterpObj.NewScope(Scope);
           NewScopeObj.SetMember(VarName, ElemValue);
-          SavedReturn := FReturnValue;
-          SavedHasReturn := FHasReturn;
-          FReturnValue := nil;
-          FHasReturn := False;
           try
-            BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+            ExecuteBody(NewScopeObj);
           finally
             NewScopeObj.Release;
-            if FReturnValue <> nil then FReturnValue.Release;
-            FReturnValue := SavedReturn;
-            FHasReturn := SavedHasReturn;
           end;
-          if BodyResult <> nil then
-          begin
-            Result.Release;
-            Result := BodyResult;
-          end;
-          if FBreakDepth < LoopDepth then
-          begin
-            FBreakDepth := LoopDepth;
-            Break;
-          end;
-          if FHasReturn then Break;
-          if FHasExit then Break;
+          if BodyFinished then Break;
         finally
           ElemValue.Release;
         end;
@@ -2495,78 +2427,68 @@ begin
       for I := 1 to LenValue do
       begin
         Ch := StrValue[I];
-        ElemValue := NewValue;
+        ElemValue := InterpObj.NewValue;
         ElemValue.Kind := vkString;
         ElemValue.StrValue := Ch;
-        NewScopeObj := NewScope(Scope);
+        NewScopeObj := InterpObj.NewScope(Scope);
         NewScopeObj.SetMember(VarName, ElemValue);
         ElemValue.Release;
-        SavedReturn := FReturnValue;
-        SavedHasReturn := FHasReturn;
-        FReturnValue := nil;
-        FHasReturn := False;
         try
-          BodyResult := EvalStatements(BodyBlock, NewScopeObj);
+          ExecuteBody(NewScopeObj);
         finally
           NewScopeObj.Release;
-          if FReturnValue <> nil then FReturnValue.Release;
-          FReturnValue := SavedReturn;
-          FHasReturn := SavedHasReturn;
         end;
-        if BodyResult <> nil then
-        begin
-          Result.Release;
-          Result := BodyResult;
-        end;
-        if FBreakDepth < LoopDepth then
-        begin
-          FBreakDepth := LoopDepth;
-          Break;
-        end;
-        if FHasReturn then Break;
-        if FHasExit then Break;
+        if BodyFinished then Break;
       end;
     end
     else
       raise ESardError.CreateFmt('for requires an array or string, got %s', [Container.KindName]);
   finally
-    if FBreakDepth >= LoopDepth then
-      Dec(FBreakDepth);
+    if InterpObj.BreakDepth >= LoopDepth then
+      InterpObj.BreakDepth := InterpObj.BreakDepth - 1;
   end;
 end;
 
-function TInterpreter.BuiltInBreak(Scope: TSardValue): TSardValue;
+function BuiltInBreak(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+var
+  InterpObj: TInterpreter;
 begin
-  if FBreakDepth > 0 then
-    Dec(FBreakDepth)
+  InterpObj := TInterpreter(Interp);
+  if InterpObj.BreakDepth > 0 then
+    InterpObj.BreakDepth := InterpObj.BreakDepth - 1
   else
     raise ESardError.Create('break outside loop');
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkNull;
 end;
 
-function TInterpreter.BuiltInExit(Scope: TSardValue; Args: array of TSardValue): TSardValue;
+function BuiltInExit(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+var
+  InterpObj: TInterpreter;
 begin
-  if FExitValue <> nil then FExitValue.Release;
+  InterpObj := TInterpreter(Interp);
+  if InterpObj.ExitValue <> nil then InterpObj.ExitValue.Release;
   if Length(Args) > 0 then
-    FExitValue := Args[0].Clone(True)
+    InterpObj.ExitValue := Args[0].Clone(True)
   else
   begin
-    FExitValue := NewValue;
-    FExitValue.Kind := vkNull;
+    InterpObj.ExitValue := InterpObj.NewValue;
+    InterpObj.ExitValue.Kind := vkNull;
   end;
-  FHasExit := True;
-  Result := FExitValue.Clone(False);
+  InterpObj.HasExit := True;
+  Result := InterpObj.ExitValue.Clone(False);
 end;
 
-function TInterpreter.BuiltInLen(Args: array of TSardValue): TSardValue;
+function BuiltInLen(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   Arg: TSardValue;
+  InterpObj: TInterpreter;
 begin
+  InterpObj := TInterpreter(Interp);
   if Length(Args) < 1 then
     raise ESardError.Create('len requires one argument');
   Arg := Args[0];
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkInteger;
   if Arg.Kind = vkArray then
     Result.IntValue := Arg.ArrayItems.Count
@@ -2579,24 +2501,32 @@ begin
   end;
 end;
 
-function TInterpreter.BuiltInNow: TSardValue;
+function BuiltInNow(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+var
+  InterpObj: TInterpreter;
 begin
-  Result := NewValue;
+  InterpObj := TInterpreter(Interp);
+  Result := InterpObj.NewValue;
   Result.Kind := vkDate;
   Result.FloatValue := Now;
 end;
 
-function TInterpreter.BuiltInTimestamp: TSardValue;
+function BuiltInTimestamp(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+var
+  InterpObj: TInterpreter;
 begin
-  Result := NewValue;
+  InterpObj := TInterpreter(Interp);
+  Result := InterpObj.NewValue;
   Result.Kind := vkInteger;
   Result.IntValue := DateTimeToUnix(Now);
 end;
 
-function TInterpreter.BuiltInSleep(Args: array of TSardValue): TSardValue;
+function BuiltInSleep(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
 var
   Ms: Int64;
+  InterpObj: TInterpreter;
 begin
+  InterpObj := TInterpreter(Interp);
   if Length(Args) < 1 then
     raise ESardError.Create('sleep requires one argument');
   if Args[0].Kind = vkInteger then
@@ -2607,13 +2537,16 @@ begin
     raise ESardError.CreateFmt('sleep requires an integer, got %s', [Args[0].KindName]);
   if Ms < 0 then Ms := 0;
   SysUtils.Sleep(Ms);
-  Result := NewValue;
+  Result := InterpObj.NewValue;
   Result.Kind := vkNull;
 end;
 
-function TInterpreter.BuiltInClock: TSardValue;
+function BuiltInClock(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+var
+  InterpObj: TInterpreter;
 begin
-  Result := NewValue;
+  InterpObj := TInterpreter(Interp);
+  Result := InterpObj.NewValue;
   Result.Kind := vkInteger;
   Result.IntValue := Int64(GetTickCount64);
 end;

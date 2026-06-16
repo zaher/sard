@@ -81,6 +81,9 @@ __recovery/
 # Boss dependency manager vendor folder https://github.com/HashLoad/boss
 modules/
 /pas/lib
+/pas/package/lib
 *.o
 *.ppu
 /pas/*.lps
+/pas/sard.obj
+/pas/sard.res

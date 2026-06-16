@@ -37,6 +37,14 @@
         <Filename Value="..\SardInterp.pas"/>
         <UnitName Value="SardInterp"/>
       </Item>
+      <Item>
+        <Filename Value="..\SardLibrary.pas"/>
+        <UnitName Value="SardLibrary"/>
+      </Item>
+      <Item>
+        <Filename Value="..\SardMath.pas"/>
+        <UnitName Value="SardMath"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

@@ -1,0 +1,28 @@
+i: integer = 0
+while(i < 5) {
+  i = i + 1
+}
+print(i)
+
+sum: integer = 0
+for([1,2,3,4,5], v) {
+  sum = sum + v
+}
+print(sum)
+
+n: integer = 0
+loop(3, j) {
+  n = n + j
+}
+print(n)
+
+if(true) {
+  print(100)
+} else {
+  print(200)
+}
+
+r: integer = 10
+if(r > 5) {
+  print(r)
+}

@@ -53,6 +53,14 @@ type
   TASTNode = class;
   TASTNodeArray = array of TASTNode;
 
+  TSardValue = class;
+
+  { Built-in function handler signature used by optional libraries.
+    Interp is passed as TObject to avoid a circular unit reference; the
+    dispatcher in SardInterp passes the interpreter instance directly. }
+  TBuiltinHandler = function(Interp: TObject; Scope: TSardValue;
+    Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+
   { AST Node }
   TASTNode = class
   public
@@ -86,8 +94,6 @@ type
     function DeepClone: TASTNode;
   end;
 
-  TSardValue = class;
-
   { Runtime Value Object }
   TSardValue = class
   public
@@ -112,6 +118,8 @@ type
     Body: TASTNode;
     DeclaredType: string;
     BuiltinName: string;
+    BuiltinHandler: TBuiltinHandler;
+    LazyArgIndexes: array of Integer; { argument positions passed as vkLazy AST wrappers }
     IsScope: Boolean;
     LazyNode: TASTNode; { for vkLazy values: condition expression to re-evaluate }
     constructor Create;
@@ -339,6 +347,8 @@ begin
     Body := nil;
     DeclaredType := '';
     IsScope := False;
+    BuiltinHandler := nil;
+    SetLength(LazyArgIndexes, 0);
     LazyNode := nil;
     OpenParamIndex := -1;
 end;
@@ -410,8 +420,12 @@ begin
     Result.ParamOpen[I] := ParamOpen[I];
   Result.OpenParamIndex := OpenParamIndex;
   Result.ReturnType := ReturnType;
-  Result.DeclaredType := DeclaredType;
+    Result.DeclaredType := DeclaredType;
     Result.BuiltinName := BuiltinName;
+    Result.BuiltinHandler := BuiltinHandler;
+    SetLength(Result.LazyArgIndexes, Length(LazyArgIndexes));
+    for I := 0 to High(LazyArgIndexes) do
+      Result.LazyArgIndexes[I] := LazyArgIndexes[I];
     Result.IsScope := IsScope;
     Result.Parent := nil;
   if Body <> nil then

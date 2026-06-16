@@ -1149,7 +1149,7 @@ end;
 function TParser.ParsePrimary: TASTNode;
 var
   Node: TASTNode;
-  //Code: Integer;
+  Code: Integer;
   S: string;
   DotPos: Integer;
 begin
@@ -1164,7 +1164,9 @@ begin
     tkNumber:
       begin
         Node := NewNode(nkLiteral);
-        //Val(FCurrent.Text, Node.FloatValue, Code);
+        Val(FCurrent.Text, Node.FloatValue, Code);
+        if Code <> 0 then
+          raise MakeError(Format('Invalid numeric literal: %s', [FCurrent.Text]));
         Result := Node;
         Advance;
       end;
