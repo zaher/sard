@@ -637,6 +637,7 @@ var
   CallNode: TASTNode;
   SavedNoAutoCall: Boolean;
 begin
+  Member := Default(TSardValue);
   { The base of a member access is used as an object, not invoked, even if it
     happens to be a parameterless callable. }
   SavedNoAutoCall := FNoAutoCall;
@@ -703,6 +704,7 @@ var
   Found: Boolean;
   IndexObj: TSardValue;
 begin
+  Member := Default(TSardValue);
   case Node.Kind of
     nkIdentifier:
       begin
@@ -1387,6 +1389,7 @@ var
     LIdx: Integer;
     LFound: Boolean;
   begin
+    LMember := Default(TSardValue);
     case ANode.Kind of
       nkIdentifier:
         begin
@@ -2146,7 +2149,6 @@ begin
       SavedHasReturn := FHasReturn;
       FReturnValue := nil;
       FHasReturn := False;
-      BodyResult := nil;
       try
         BodyResult := EvalStatements(BodyBlock, NewScopeObj);
         if BodyResult <> nil then BodyResult.AddRef;
@@ -2264,7 +2266,6 @@ begin
         SavedHasReturn := FHasReturn;
         FReturnValue := nil;
         FHasReturn := False;
-        BodyResult := nil;
         try
           BodyResult := EvalStatements(BodyBlock, NewScopeObj);
           if BodyResult <> nil then BodyResult.AddRef;
@@ -2304,7 +2305,6 @@ begin
         SavedHasReturn := FHasReturn;
         FReturnValue := nil;
         FHasReturn := False;
-        BodyResult := nil;
         try
           BodyResult := EvalStatements(BodyBlock, NewScopeObj);
           if BodyResult <> nil then BodyResult.AddRef;
@@ -2393,7 +2393,6 @@ begin
           SavedHasReturn := FHasReturn;
           FReturnValue := nil;
           FHasReturn := False;
-          BodyResult := nil;
           try
             BodyResult := EvalStatements(BodyBlock, NewScopeObj);
             if BodyResult <> nil then BodyResult.AddRef;
@@ -2436,7 +2435,6 @@ begin
         SavedHasReturn := FHasReturn;
         FReturnValue := nil;
         FHasReturn := False;
-        BodyResult := nil;
         try
           BodyResult := EvalStatements(BodyBlock, NewScopeObj);
           if BodyResult <> nil then BodyResult.AddRef;
