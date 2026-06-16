@@ -16,6 +16,8 @@ type
     FBreakDepth: Integer;
     FReturnValue: TSardValue;
     FHasReturn: Boolean;
+    FExitValue: TSardValue;
+    FHasExit: Boolean;
     FNoAutoCall: Boolean;
     procedure InitBuiltins;
     function NewValue: TSardValue;
@@ -56,6 +58,7 @@ type
     function BuiltInLoop(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
     function BuiltInFor(Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
     function BuiltInBreak(Scope: TSardValue): TSardValue;
+    function BuiltInExit(Scope: TSardValue; Args: array of TSardValue): TSardValue;
     function BuiltInLen(Args: array of TSardValue): TSardValue;
     function BuiltInNow: TSardValue;
     function BuiltInTimestamp: TSardValue;
@@ -73,7 +76,7 @@ implementation
 
 constructor TInterpreter.Create;
 var
-  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, LenObj, NowObj, TimestampObj: TSardValue;
+  TrueObj, FalseObj, PrintObj, IfObj, WhileObj, LoopObj, ForObj, BreakObj, ExitObj, LenObj, NowObj, TimestampObj: TSardValue;
 
   procedure AddBuiltin(const Name: string; Obj: TSardValue);
   begin
@@ -88,6 +91,8 @@ begin
   FBreakDepth := 0;
   FReturnValue := nil;
   FHasReturn := False;
+  FExitValue := nil;
+  FHasExit := False;
   FNoAutoCall := False;
 
   TrueObj := TSardValue.Create;
@@ -136,6 +141,12 @@ begin
   BreakObj.BuiltinName := 'break';
   AddBuiltin('break', BreakObj);
 
+  ExitObj := TSardValue.Create;
+  ExitObj.Kind := vkObject;
+  ExitObj.Callable := True;
+  ExitObj.BuiltinName := 'exit';
+  AddBuiltin('exit', ExitObj);
+
   LenObj := TSardValue.Create;
   LenObj.Kind := vkObject;
   LenObj.Callable := True;
@@ -159,6 +170,7 @@ destructor TInterpreter.Destroy;
 begin
   FRoot.Release;
   if FReturnValue <> nil then FReturnValue.Release;
+  if FExitValue <> nil then FExitValue.Release;
   inherited;
 end;
 
@@ -207,6 +219,9 @@ procedure TInterpreter.Execute(Node: TASTNode);
 var
   Ret: TSardValue;
 begin
+  if FExitValue <> nil then FExitValue.Release;
+  FExitValue := nil;
+  FHasExit := False;
   Ret := EvalStatements(Node, FRoot);
   if Ret <> nil then Ret.Release;
 end;
@@ -244,6 +259,7 @@ begin
       end;
     end;
     if FHasReturn then Break;
+    if FHasExit then Break;
     if FBreakDepth < StartBreakDepth then Break;
   end;
   if Result = nil then
@@ -948,6 +964,8 @@ begin
           Result := BuiltInFor(Scope, Args, Blocks)
         else if BuiltinName = 'break' then
           Result := BuiltInBreak(Scope)
+        else if BuiltinName = 'exit' then
+          Result := BuiltInExit(Scope, Args)
         else if BuiltinName = 'len' then
           Result := BuiltInLen(Args)
         else if BuiltinName = 'now' then
@@ -1867,6 +1885,8 @@ var
   BlockVal: TSardValue;
   SavedReturn: TSardValue;
   SavedHasReturn: Boolean;
+  SavedExitValue: TSardValue;
+  SavedHasExit: Boolean;
 
 begin
   Result := nil;
@@ -1938,16 +1958,31 @@ begin
     BodyScope := NewScope(CallableScope);
     SavedReturn := FReturnValue;
     SavedHasReturn := FHasReturn;
+    SavedExitValue := FExitValue;
+    SavedHasExit := FHasExit;
     FReturnValue := nil;
     FHasReturn := False;
+    FExitValue := nil;
+    FHasExit := False;
     try
       Result := EvalStatements(Callable.Body, BodyScope);
       if Result <> nil then Result.AddRef;
+      if FHasExit then
+      begin
+        if Result <> nil then Result.Release;
+        Result := FExitValue;
+        if Result <> nil then Result.AddRef;
+        FExitValue := nil;
+        FHasExit := False;
+      end;
     finally
       BodyScope.Release;
       if FReturnValue <> nil then FReturnValue.Release;
       FReturnValue := SavedReturn;
       FHasReturn := SavedHasReturn;
+      if FExitValue <> nil then FExitValue.Release;
+      FExitValue := SavedExitValue;
+      FHasExit := SavedHasExit;
     end;
     if Result = nil then Result := NewValue;
   finally
@@ -2190,6 +2225,7 @@ begin
         Break;
       end;
       if FHasReturn then Break;
+      if FHasExit then Break;
     end;
   finally
     if FBreakDepth >= LoopDepth then
@@ -2307,6 +2343,7 @@ begin
           Break;
         end;
         if FHasReturn then Break;
+        if FHasExit then Break;
       end;
     end
     else
@@ -2346,6 +2383,7 @@ begin
           Break;
         end;
         if FHasReturn then Break;
+        if FHasExit then Break;
       end;
     end;
   finally
@@ -2434,6 +2472,7 @@ begin
             Break;
           end;
           if FHasReturn then Break;
+          if FHasExit then Break;
         finally
           ElemValue.Release;
         end;
@@ -2476,6 +2515,7 @@ begin
           Break;
         end;
         if FHasReturn then Break;
+        if FHasExit then Break;
       end;
     end
     else
@@ -2494,6 +2534,20 @@ begin
     raise ESardError.Create('break outside loop');
   Result := NewValue;
   Result.Kind := vkNull;
+end;
+
+function TInterpreter.BuiltInExit(Scope: TSardValue; Args: array of TSardValue): TSardValue;
+begin
+  if FExitValue <> nil then FExitValue.Release;
+  if Length(Args) > 0 then
+    FExitValue := Args[0].Clone(True)
+  else
+  begin
+    FExitValue := NewValue;
+    FExitValue.Kind := vkNull;
+  end;
+  FHasExit := True;
+  Result := FExitValue.Clone(False);
 end;
 
 function TInterpreter.BuiltInLen(Args: array of TSardValue): TSardValue;

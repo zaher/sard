@@ -1,0 +1,68 @@
+// Test exit(value) - Pascal-style early return from a callable
+
+// Basic exit with value
+add_one : (n) {
+    exit(n + 1)
+    print("unreachable")
+}
+print(add_one(5))
+
+// Exit from nested block
+early : (x) {
+    if (x > 0) {
+        exit("positive")
+    }
+    = "non-positive"
+}
+print(early(10))
+print(early(-3))
+
+// Exit from loop
+find_first : (arr) {
+    for(arr, v) {
+        if (v > 5) {
+            exit(v)
+        }
+    }
+    = none
+}
+print(find_first([1, 2, 8, 9]))
+print(find_first([1, 2, 3]))
+
+// Exit without value returns none
+void_exit : () {
+    exit
+    print("unreachable")
+    = "also unreachable"
+}
+print(void_exit())
+
+// Exit with empty parentheses also returns none
+void_exit2 : () {
+    exit()
+    print("unreachable")
+}
+print(void_exit2())
+
+// Exit from a while loop
+search : () {
+    i = 0
+    while (i < 100) {
+        if (i = 5) {
+            exit(i)
+        }
+        i += 1
+    }
+    = none
+}
+print(search())
+
+// Exit does not propagate past the current callable
+outer : () {
+    inner : () {
+        exit(99)
+    }
+    inner()
+    = "outer continues"
+}
+print(outer())

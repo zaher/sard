@@ -1332,7 +1332,7 @@ a = (--b) = c   // Same as above - prefix dec, comparison, assign to a
 return-statement     := "=" expression statement-term
 ```
 
-Sets the block's return value. **Does NOT terminate execution** — subsequent statements continue to run. The last executed return statement determines the block's value. For early exit from a block, use `break` (if defined by addon, see §9.4). The semicolon is optional at end of line; return/newline acts as statement terminator.
+Sets the block's return value. **Does NOT terminate execution** — subsequent statements continue to run. The last executed return statement determines the block's value. For early exit from a block, use `break` (if defined by addon, see §9.4). To return early from the current callable (like Pascal's `Exit` or C's `return`), use the built-in `exit(value)` callable (see §9.4). The semicolon is optional at end of line; return/newline acts as statement terminator.
 
 At the statement level, a bare `= expression` (without a left-hand side) is parsed as a block return. This is unambiguous because assignment requires an `lvalue` on the left.
 
@@ -1579,6 +1579,7 @@ The following are callable objects provided by the runtime:
 | `else` | Used with `if` for alternative branch |
 | `negate` | Numeric negation (callable version) |
 | `break` | Exits from loop or block (runtime-defined via addons, not reserved) |
+| `exit` | Exits the current callable with an optional return value (not reserved) |
 | `len` | Returns the length of an array or string |
 | `now` | Returns the current date/time as a `date` value |
 | `timestamp` | Returns the current Unix timestamp as an `integer` |
@@ -1586,6 +1587,8 @@ The following are callable objects provided by the runtime:
 **Note on `else`**: `else` serves a dual role. Syntactically, `else { ... }` is parsed as a **named block** that is passed by name to the preceding callable (e.g., `if`, `while`). At the same time, `else` exists as a built-in callable object in the root scope, which is the default handler that `if` and `while` delegate to when evaluating the alternate branch. Overriding the `else` object changes the behavior of `else` blocks across all constructs.
 
 **Note:** `break` is not a reserved word and is not built into the core language. It is declared at runtime by addons and can be shadowed by local declarations or replaced with custom implementations.
+
+**Note:** `exit` is also not a reserved word. It is provided as a built-in callable object by the runtime and can be shadowed by local declarations like any other identifier.
 
 These callable objects can be invoked with arguments, blocks, or both. They can be assigned to variables or passed as arguments.
 
@@ -1963,6 +1966,47 @@ result = {
 ```
 
 **Implementation Note:** Addons can define `break` as a callable object that, when invoked, signals the interpreter to unwind the execution stack until the nearest enclosing loop or block boundary. The exact semantics (e.g., whether it accepts an argument to return a value) are defined by the addon implementation.
+
+#### `exit`
+
+`exit` is a built-in callable object (not a reserved word) that immediately terminates the current callable and returns a value to its caller. It behaves like Pascal's `Exit` procedure or C's `return` statement.
+
+```sard
+add_one : (n) {
+    exit(n + 1)        // return early with n + 1
+    print("unreachable")
+}
+print(add_one(5))      // 6
+
+// Exit from nested control flow
+find_first : (arr) {
+    for(arr, v) {
+        if (v > 5) {
+            exit(v)    // return the first matching element
+        }
+    }
+    = none             // only reached if no element matched
+}
+print(find_first([1, 2, 8, 9]))  // 8
+print(find_first([1, 2, 3]))     // none
+
+// Exit without a value returns none
+void_callable : () {
+    exit
+    = "unreachable"
+}
+print(void_callable()) // none
+```
+
+**Behavior:**
+- `exit(value)` stops execution of the current callable body immediately and returns `value` to the caller
+- `exit` (or `exit()`) with no argument returns `none`
+- `exit` propagates out of nested blocks, `if` branches, and loops inside the callable
+- `exit` does **not** propagate past the current callable — calling another callable that uses `exit` does not cause the caller to exit
+- `exit` at the top level of a program stops program execution
+- Since `exit` is a callable object, it can be shadowed by a local declaration or assigned to a variable
+
+**Note:** `exit` is distinct from the bare `= value` block return statement (§5.4). The block return sets the block's eventual value but does not terminate execution, whereas `exit` immediately returns from the enclosing callable.
 
 ### 9.5 Length Function
 
