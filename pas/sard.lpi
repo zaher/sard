@@ -13,17 +13,18 @@
       <Title Value="sard"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
+      <Icon Value="0"/>
     </General>
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
       <RevisionNr Value="3"/>
-      <BuildNr Value="9"/>
+      <BuildNr Value="13"/>
     </VersionInfo>
     <BuildModes>
-      <Item Name="Debug" Default="True"/>
-      <Item Name="Release">
+      <Item Name="Debug"/>
+      <Item Name="Release" Default="True">
         <CompilerOptions>
           <Version Value="11"/>
           <PathDelim Value="\"/>

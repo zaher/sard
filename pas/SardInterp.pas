@@ -99,8 +99,6 @@ function BuiltInClock(Interp: TObject; Scope: TSardValue; Args: array of TSardVa
 { TInterpreter }
 
 constructor TInterpreter.Create;
-var
-  TrueObj, FalseObj: TSardValue;
 begin
   inherited;
   FRoot := TSardValue.Create;
@@ -113,17 +111,8 @@ begin
   FNoAutoCall := False;
 
   { Constants }
-  TrueObj := TSardValue.Create;
-  TrueObj.Kind := vkBoolean;
-  TrueObj.BoolValue := True;
-  FRoot.SetMember('true', TrueObj);
-  TrueObj.Release;
-
-  FalseObj := TSardValue.Create;
-  FalseObj.Kind := vkBoolean;
-  FalseObj.BoolValue := False;
-  FRoot.SetMember('false', FalseObj);
-  FalseObj.Release;
+  FRoot.SetMember('true', ValueTrue);
+  FRoot.SetMember('false', ValueFalse);
 
   { Core builtins }
   RegisterBuiltin('print',     @BuiltInPrint);
@@ -222,7 +211,7 @@ var
   SavedReturn: TSardValue;
   SavedHasReturn: Boolean;
 begin
-  Result := nil;
+  Result := NullValue;
   if Body = nil then Exit;
   NewScopeObj := NewScope(Scope);
   SavedReturn := FReturnValue;
@@ -253,7 +242,7 @@ begin
   Result := nil;
   FHasReturn := False;
   StartBreakDepth := FBreakDepth;
-  for I := 0 to High(Node.Children) do
+  for I := 0 to Node.ChildCount - 1 do
   begin
     if Result <> nil then Result.Release;
     Result := EvalNode(Node.Children[I], Scope);
@@ -276,7 +265,7 @@ begin
     if FBreakDepth < StartBreakDepth then Break;
   end;
   if Result = nil then
-    Result := NewValue;
+    Result := NullValue;
 end;
 
 function TInterpreter.EvalNode(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -287,7 +276,7 @@ var
 begin
   if Node = nil then
   begin
-    Result := NewValue;
+    Result := NullValue;
     Exit;
   end;
 
@@ -437,8 +426,6 @@ begin
   try
     if Node.Op = '==' then
     begin
-      Result := NewValue;
-      Result.Kind := vkBoolean;
       if Node.Right.Kind = nkIdentifier then
         TypeName := LowerName(Node.Right.Name)
       else
@@ -450,60 +437,28 @@ begin
           Right.Release;
         end;
       end;
-      Result.BoolValue := TypeMatches(Left, TypeName);
+      Result := BooleanValue(TypeMatches(Left, TypeName));
       Exit;
     end;
 
     Right := EvalExpression(Node.Right, Scope);
     try
       if (Node.Op = 'and') or (Node.Op = '&') then
-          begin
-            Result := NewValue;
-            Result.Kind := vkBoolean;
-            Result.BoolValue := IsTruthy(Left) and IsTruthy(Right);
-      end
+        Result := BooleanValue(IsTruthy(Left) and IsTruthy(Right))
       else if (Node.Op = 'or') or (Node.Op = '|') then
-          begin
-            Result := NewValue;
-            Result.Kind := vkBoolean;
-            Result.BoolValue := IsTruthy(Left) or IsTruthy(Right);
-      end
+        Result := BooleanValue(IsTruthy(Left) or IsTruthy(Right))
       else if Node.Op = '=' then
-          begin
-            Result := NewValue;
-            Result.Kind := vkBoolean;
-            Result.BoolValue := ObjectsEqual(Left, Right);
-      end
+        Result := BooleanValue(ObjectsEqual(Left, Right))
       else if (Node.Op = '<>') or (Node.Op = '!=') then
-          begin
-                Result := NewValue;
-                Result.Kind := vkBoolean;
-                Result.BoolValue := not ObjectsEqual(Left, Right);
-              end
+        Result := BooleanValue(not ObjectsEqual(Left, Right))
       else if Node.Op = '<' then
-              begin
-                Result := NewValue;
-                Result.Kind := vkBoolean;
-        Result.BoolValue := CompareValues(Left, Right) < 0;
-              end
+        Result := BooleanValue(CompareValues(Left, Right) < 0)
       else if Node.Op = '>' then
-            begin
-              Result := NewValue;
-              Result.Kind := vkBoolean;
-        Result.BoolValue := CompareValues(Left, Right) > 0;
-      end
+        Result := BooleanValue(CompareValues(Left, Right) > 0)
       else if Node.Op = '<=' then
-          begin
-              Result := NewValue;
-              Result.Kind := vkBoolean;
-        Result.BoolValue := CompareValues(Left, Right) <= 0;
-            end
+        Result := BooleanValue(CompareValues(Left, Right) <= 0)
       else if Node.Op = '>=' then
-            begin
-              Result := NewValue;
-              Result.Kind := vkBoolean;
-        Result.BoolValue := CompareValues(Left, Right) >= 0;
-      end
+        Result := BooleanValue(CompareValues(Left, Right) >= 0)
       else
         Result := ApplyOperator(Node.Op, Left, Right);
     finally
@@ -877,17 +832,17 @@ var
 begin
   Result := nil;
   BlockCount := 0;
-  SetLength(BlockArr, Length(Node.Children));
+  SetLength(BlockArr, Node.ChildCount);
   SetLength(ArgNodeArr, 0);
   try
     { Separate argument lists and blocks from children }
-    for I := 0 to High(Node.Children) do
+    for I := 0 to Node.ChildCount - 1 do
     begin
       if Node.Children[I].Name = 'args' then
       begin
         ArgListNode := Node.Children[I];
-        SetLength(ArgNodeArr, Length(ArgListNode.Children));
-        for J := 0 to High(ArgListNode.Children) do
+        SetLength(ArgNodeArr, ArgListNode.ChildCount);
+        for J := 0 to ArgListNode.ChildCount - 1 do
           ArgNodeArr[J] := ArgListNode.Children[J];
       end
       else
@@ -970,7 +925,7 @@ begin
       if Blocks <> nil then
       begin
         { Blocks is a temporary wrapper; do not free the original AST children }
-        SetLength(Blocks.Children, 0);
+        Blocks.ClearChildren;
         Blocks.Free;
       end;
     end;
@@ -1113,7 +1068,7 @@ var
   SavedReturn: TSardValue;
   SavedHasReturn: Boolean;
 begin
-  if (Length(Node.Children) = 0) and (Node.ReturnType = '') then
+  if (Node.ChildCount = 0) and (Node.ReturnType = '') then
   begin
     { Variable declaration without initializer }
     Value := NewValue;
@@ -1125,7 +1080,7 @@ begin
     Exit;
   end;
 
-  if Length(Node.Children) > 0 then
+  if Node.ChildCount > 0 then
   begin
     BodyNode := Node.Children[0];
     if BodyNode.Kind = nkBlock then
@@ -1193,10 +1148,10 @@ end;
 function TInterpreter.EvalReturn(Node: TASTNode; Scope: TSardValue): TSardValue;
 begin
   if FReturnValue <> nil then FReturnValue.Release;
-  if Length(Node.Children) > 0 then
+  if Node.ChildCount > 0 then
     FReturnValue := EvalExpression(Node.Children[0], Scope)
   else
-    FReturnValue := NewValue;
+    FReturnValue := NullValue;
   FHasReturn := True;
   Result := FReturnValue;
   Result.AddRef;
@@ -1215,25 +1170,36 @@ begin
   Result.Kind := vkArray;
   HasRepeat := False;
   RepeatCount := 1;
-  if (Length(Node.Children) > 0) and (Node.Children[High(Node.Children)].Name = 'repeat') then
+  if (Node.ChildCount > 0) and (Node.Children[Node.ChildCount - 1].Name = 'repeat') then
   begin
     HasRepeat := True;
-    RepeatNode := Node.Children[High(Node.Children)];
+    RepeatNode := Node.Children[Node.ChildCount - 1];
     RepeatCount := RepeatNode.IntValue;
     if RepeatCount < 0 then RepeatCount := 0;
   end;
 
-  Count := Length(Node.Children);
+  Count := Node.ChildCount;
   if HasRepeat then Dec(Count);
 
   for I := 0 to Count - 1 do
   begin
     Elem := EvalExpression(Node.Children[I], Scope);
     try
-      for J := 1 to RepeatCount do
+      if IsImmutableKind(Elem.Kind) then
       begin
-        ElemClone := Elem.Clone(True);
-        Result.ArrayItems.Add(ElemClone);
+        for J := 1 to RepeatCount do
+        begin
+          Elem.AddRef;
+          Result.ArrayItems.Add(Elem);
+        end;
+      end
+      else
+      begin
+        for J := 1 to RepeatCount do
+        begin
+          ElemClone := Elem.Clone(True);
+          Result.ArrayItems.Add(ElemClone);
+        end;
       end;
     finally
       Elem.Release;
@@ -1630,8 +1596,8 @@ begin
   end
   else if (Op = '!') or (Op = 'not') then
   begin
-    Result.Kind := vkBoolean;
-    Result.BoolValue := not IsTruthy(Operand);
+    Result := BooleanValue(not IsTruthy(Operand));
+    Exit;
   end
   else
     raise ESardError.CreateFmt('Unknown unary operator: %s', [Op]);
@@ -1954,11 +1920,11 @@ begin
     end;
 
     { Bind blocks as array of objects named by block name }
-    if (Blocks <> nil) and (Length(Blocks.Children) > 0) then
+    if (Blocks <> nil) and (Blocks.ChildCount > 0) then
     begin
       BlocksArray := NewValue;
       BlocksArray.Kind := vkArray;
-      for I := 0 to High(Blocks.Children) do
+      for I := 0 to Blocks.ChildCount - 1 do
       begin
         BlockNode := Blocks.Children[I];
         BlockVal := NewValue;
@@ -2024,8 +1990,7 @@ begin
     S := S + Args[I].AsString;
   end;
   WriteLn(S);
-  Result := InterpObj.NewValue;
-  Result.Kind := vkNull;
+  Result := NullValue;
 end;
 
 function BuiltInIf(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
@@ -2053,7 +2018,7 @@ begin
   BodyBlock := nil;
   if Blocks <> nil then
   begin
-    for I := 0 to High(Blocks.Children) do
+    for I := 0 to Blocks.ChildCount - 1 do
     begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then
@@ -2061,8 +2026,7 @@ begin
     end;
   end;
 
-  Result := InterpObj.NewValue;
-  Result.Kind := vkNull;
+  Result := NullValue;
 
   if CondValue then
   begin
@@ -2074,7 +2038,7 @@ begin
   end
   else if Blocks <> nil then
   begin
-    for I := 0 to High(Blocks.Children) do
+    for I := 0 to Blocks.ChildCount - 1 do
     begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then
@@ -2146,7 +2110,7 @@ begin
   ElseBlock := nil;
   if Blocks <> nil then
   begin
-    for I := 0 to High(Blocks.Children) do
+    for I := 0 to Blocks.ChildCount - 1 do
     begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then
@@ -2257,7 +2221,7 @@ begin
   BodyBlock := nil;
   if Blocks <> nil then
   begin
-    for I := 0 to High(Blocks.Children) do
+    for I := 0 to Blocks.ChildCount - 1 do
     begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then
@@ -2418,7 +2382,7 @@ begin
   BodyBlock := nil;
   if Blocks <> nil then
   begin
-    for I := 0 to High(Blocks.Children) do
+    for I := 0 to Blocks.ChildCount - 1 do
     begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then

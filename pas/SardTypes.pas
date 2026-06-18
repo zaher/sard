@@ -53,6 +53,33 @@ type
   TASTNode = class;
   TASTNodeArray = array of TASTNode;
 
+  { Simple open-addressing hash map for string -> integer lookups.
+    Used to accelerate member/variable name lookup. Case-insensitive. }
+  THashEntryState = (hesEmpty, hesUsed);
+
+  THashEntry = record
+    Key: string;
+    Value: Integer;
+    State: THashEntryState;
+  end;
+
+  TStringIntHashMap = class
+  private
+    FEntries: array of THashEntry;
+    FCount: Integer;
+    FCapacity: Integer;
+    function HashKey(const Key: string): Cardinal;
+    function SameKey(const A, B: string): Boolean;
+    procedure Grow;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Add(const Key: string; Value: Integer);
+    function IndexOf(const Key: string): Integer;
+    procedure Clear;
+    property Count: Integer read FCount;
+  end;
+
   TSardValue = class;
 
   TSardValueArray = array of TSardValue;
@@ -80,6 +107,7 @@ type
     Name: string;
     Op: string;
     Children: array of TASTNode;
+    FChildCount: Integer;
     Left, Right: TASTNode;
     Typ: string;
     Params: TStringArray;
@@ -92,8 +120,10 @@ type
     constructor Create(AKind: TNodeKind; const AText: string; ALine, ACol: Integer);
     destructor Destroy; override;
     procedure AddChild(Child: TASTNode);
+    procedure ClearChildren;
     function IsLValue: Boolean;
     function DeepClone: TASTNode;
+    property ChildCount: Integer read FChildCount;
   end;
   
   { Runtime Value Object }
@@ -101,14 +131,17 @@ type
   private
     FArrayItems: TList;
     FMembers: TStringList;
+    FMemberMap: TStringIntHashMap;
     FParams: TStringList;
     FParamTypes: TStringList;
     function GetArrayItems: TList;
     function GetMembers: TStringList;
     function GetParams: TStringList;
     function GetParamTypes: TStringList;
+    procedure RebuildMemberMap;
   public
     RefCount: Integer;
+    IsSingleton: Boolean;
     Kind: TValueKind;
     IntValue: Int64;
     FloatValue: Double;
@@ -137,6 +170,7 @@ type
     destructor Destroy; override;
     procedure AddRef;
     procedure Release;
+    procedure Free; reintroduce;
     procedure SetParent(P: TSardValue);
     function Clone(Deep: Boolean = True): TSardValue;
     procedure SetMember(const Name: string; Value: TSardValue);
@@ -163,6 +197,15 @@ procedure DumpAST(Node: TASTNode; Indent: Integer);
 {$ifndef FPC}
 function BoolToStr(B: boolean; const TrueStr, FalseStr: string): string;
 {$endif}
+
+{ Shared immutable singletons. These are never freed. }
+var
+  ValueTrue: TSardValue;
+  ValueFalse: TSardValue;
+  ValueNone: TSardValue;
+
+function BooleanValue(V: Boolean): TSardValue;
+function NullValue: TSardValue;
 
 implementation
 
@@ -221,14 +264,15 @@ begin
    Op := '';
     Typ := '';
     ReturnType := '';
-    OpenParamIndex := -1;
-  end;
+     OpenParamIndex := -1;
+     FChildCount := 0;
+   end;
 
 destructor TASTNode.Destroy;
 var
   I: Integer;
 begin
-  for I := 0 to High(Children) do
+  for I := 0 to FChildCount - 1 do
     Children[I].Free;
   for I := 0 to High(ParamDefaults) do
     ParamDefaults[I].Free;
@@ -239,11 +283,22 @@ end;
 
 procedure TASTNode.AddChild(Child: TASTNode);
 var
-  N: Integer;
+  N, Cap: Integer;
 begin
-  N := Length(Children);
-  SetLength(Children, N + 1);
+  N := FChildCount;
+  Cap := Length(Children);
+  if N >= Cap then
+  begin
+    if Cap < 4 then Cap := 4 else Cap := Cap * 2;
+    SetLength(Children, Cap);
+  end;
   Children[N] := Child;
+  Inc(FChildCount);
+end;
+
+procedure TASTNode.ClearChildren;
+begin
+  FChildCount := 0;
 end;
 
 function TASTNode.IsLValue: Boolean;
@@ -285,8 +340,9 @@ begin
   Result.HasParamList := HasParamList;
   if Left <> nil then Result.Left := Left.DeepClone;
   if Right <> nil then Result.Right := Right.DeepClone;
-  SetLength(Result.Children, Length(Children));
-  for I := 0 to High(Children) do
+  SetLength(Result.Children, FChildCount);
+  Result.FChildCount := FChildCount;
+  for I := 0 to FChildCount - 1 do
     Result.Children[I] := Children[I].DeepClone;
 end;
 
@@ -339,8 +395,112 @@ begin
     WriteLn(Prefix, '  Right:');
     DumpAST(Node.Right, Indent + 2);
   end;
-  for I := 0 to High(Node.Children) do
+  for I := 0 to Node.ChildCount - 1 do
     DumpAST(Node.Children[I], Indent + 1);
+end;
+
+{ TStringIntHashMap }
+
+function TStringIntHashMap.HashKey(const Key: string): Cardinal;
+var
+  I: Integer;
+  C: Char;
+begin
+  Result := 5381;
+  for I := 1 to Length(Key) do
+  begin
+    C := Key[I];
+    if (C >= 'A') and (C <= 'Z') then
+      C := Char(Ord(C) + 32);
+    Result := ((Result shl 5) + Result) xor Ord(C);
+  end;
+end;
+
+function TStringIntHashMap.SameKey(const A, B: string): Boolean;
+begin
+  Result := SameText(A, B);
+end;
+
+constructor TStringIntHashMap.Create;
+begin
+  inherited;
+  FCapacity := 16;
+  SetLength(FEntries, FCapacity);
+  FCount := 0;
+end;
+
+destructor TStringIntHashMap.Destroy;
+begin
+  SetLength(FEntries, 0);
+  inherited;
+end;
+
+procedure TStringIntHashMap.Grow;
+var
+  OldEntries: array of THashEntry;
+  I: Integer;
+begin
+  OldEntries := FEntries;
+  FCapacity := FCapacity * 2;
+  SetLength(FEntries, FCapacity);
+  FCount := 0;
+  for I := 0 to High(OldEntries) do
+    if OldEntries[I].State = hesUsed then
+      Add(OldEntries[I].Key, OldEntries[I].Value);
+end;
+
+function TStringIntHashMap.IndexOf(const Key: string): Integer;
+var
+  H, Slot: Cardinal;
+begin
+  if FCount = 0 then
+  begin
+    Result := -1;
+    Exit;
+  end;
+  H := HashKey(Key);
+  Slot := H mod Cardinal(FCapacity);
+  while FEntries[Slot].State <> hesEmpty do
+  begin
+    if (FEntries[Slot].State = hesUsed) and SameKey(FEntries[Slot].Key, Key) then
+    begin
+      Result := FEntries[Slot].Value;
+      Exit;
+    end;
+    Slot := (Slot + 1) mod Cardinal(FCapacity);
+  end;
+  Result := -1;
+end;
+
+procedure TStringIntHashMap.Add(const Key: string; Value: Integer);
+var
+  H, Slot: Cardinal;
+begin
+  if FCount * 2 >= FCapacity then Grow;
+  H := HashKey(Key);
+  Slot := H mod Cardinal(FCapacity);
+  while FEntries[Slot].State = hesUsed do
+  begin
+    if SameKey(FEntries[Slot].Key, Key) then
+    begin
+      FEntries[Slot].Value := Value;
+      Exit;
+    end;
+    Slot := (Slot + 1) mod Cardinal(FCapacity);
+  end;
+  FEntries[Slot].State := hesUsed;
+  FEntries[Slot].Key := Key;
+  FEntries[Slot].Value := Value;
+  Inc(FCount);
+end;
+
+procedure TStringIntHashMap.Clear;
+var
+  I: Integer;
+begin
+  for I := 0 to High(FEntries) do
+    FEntries[I].State := hesEmpty;
+  FCount := 0;
 end;
 
 { TSardValue }
@@ -358,6 +518,8 @@ begin
   begin
     FMembers := TStringList.Create;
     FMembers.CaseSensitive := False;
+    if FMemberMap = nil then
+      FMemberMap := TStringIntHashMap.Create;
   end;
   Result := FMembers;
 end;
@@ -380,9 +542,11 @@ constructor TSardValue.Create;
 begin
   inherited;
   RefCount := 1;
+  IsSingleton := False;
   Kind := vkNull;
   FArrayItems := nil;
   FMembers := nil;
+  FMemberMap := nil;
   FParams := nil;
   FParamTypes := nil;
   Parent := nil;
@@ -408,6 +572,12 @@ begin
     Free;
 end;
 
+procedure TSardValue.Free;
+begin
+  if IsSingleton then Exit;
+  inherited Free;
+end;
+
 procedure TSardValue.SetParent(P: TSardValue);
 begin
   Parent := P;
@@ -427,6 +597,8 @@ begin
     end;
     FMembers.Free;
   end;
+  if FMemberMap <> nil then
+    FMemberMap.Free;
   if FArrayItems <> nil then
   begin
     for I := 0 to FArrayItems.Count - 1 do
@@ -442,6 +614,18 @@ begin
     ParamDefaults[I].Free;
   Body.Free;
   inherited;
+end;
+
+procedure TSardValue.RebuildMemberMap;
+var
+  I: Integer;
+begin
+  if FMemberMap = nil then
+    FMemberMap := TStringIntHashMap.Create;
+  FMemberMap.Clear;
+  if FMembers <> nil then
+    for I := 0 to FMembers.Count - 1 do
+      FMemberMap.Add(FMembers[I], I);
 end;
 
 function TSardValue.Clone(Deep: Boolean): TSardValue;
@@ -478,11 +662,11 @@ begin
     for I := 0 to High(LazyArgIndexes) do
       Result.LazyArgIndexes[I] := LazyArgIndexes[I];
     Result.IsScope := IsScope;
-    Result.Parent := nil;
   if Body <> nil then
     Result.Body := Body.DeepClone;
   if Deep then
   begin
+    Result.Parent := nil;
     if FArrayItems <> nil then
       for I := 0 to FArrayItems.Count - 1 do
       begin
@@ -500,6 +684,7 @@ begin
   end
   else
   begin
+    Result.Parent := Parent;
     if FArrayItems <> nil then
       for I := 0 to FArrayItems.Count - 1 do
       begin
@@ -515,6 +700,7 @@ begin
         Result.Members.AddObject(FMembers[I], V);
       end;
   end;
+  Result.RebuildMemberMap;
 end;
 
 procedure TSardValue.SetMember(const Name: string; Value: TSardValue);
@@ -523,8 +709,8 @@ var
   Old: TSardValue;
 begin
   Idx := -1;
-  if FMembers <> nil then
-    Idx := FMembers.IndexOf(Name);
+  if FMemberMap <> nil then
+    Idx := FMemberMap.IndexOf(Name);
   if Idx >= 0 then
   begin
     Old := TSardValue(FMembers.Objects[Idx]);
@@ -532,7 +718,10 @@ begin
     FMembers.Objects[Idx] := Value;
   end
   else
+  begin
     Members.AddObject(Name, Value);
+    FMemberMap.Add(Name, Members.Count - 1);
+  end;
   if Value <> nil then Value.AddRef;
 end;
 
@@ -567,19 +756,19 @@ end;
 
 function TSardValue.HasLocalMember(const Name: string): Boolean;
 begin
-  Result := (FMembers <> nil) and (FMembers.IndexOf(Name) >= 0);
+  Result := (FMemberMap <> nil) and (FMemberMap.IndexOf(Name) >= 0);
 end;
 
 function TSardValue.FindLocalMember(const Name: string; out Index: Integer): Boolean;
 begin
-  if FMembers = nil then
+  if FMemberMap = nil then
   begin
     Index := -1;
     Result := False;
   end
   else
   begin
-    Index := FMembers.IndexOf(Name);
+    Index := FMemberMap.IndexOf(Name);
     Result := Index >= 0;
   end;
 end;
@@ -601,6 +790,16 @@ begin
   else
     Result := 'unknown';
   end;
+end;
+
+function BooleanValue(V: Boolean): TSardValue;
+begin
+  if V then Result := ValueTrue else Result := ValueFalse;
+end;
+
+function NullValue: TSardValue;
+begin
+  Result := ValueNone;
 end;
 
 function TSardValue.AsString: string;
@@ -650,5 +849,20 @@ begin
     Result := '?';
   end;
 end;
+
+initialization
+  ValueTrue := TSardValue.Create;
+  ValueTrue.Kind := vkBoolean;
+  ValueTrue.BoolValue := True;
+  ValueTrue.IsSingleton := True;
+
+  ValueFalse := TSardValue.Create;
+  ValueFalse.Kind := vkBoolean;
+  ValueFalse.BoolValue := False;
+  ValueFalse.IsSingleton := True;
+
+  ValueNone := TSardValue.Create;
+  ValueNone.Kind := vkNull;
+  ValueNone.IsSingleton := True;
 
 end.
