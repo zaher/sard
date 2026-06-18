@@ -49,7 +49,7 @@ type
   { Runtime value kinds }
   TValueKind = (
     vkNull, vkInteger, vkNumber, vkString, vkBoolean,
-    vkColor, vkCurrency, vkDate, vkArray, vkObject, vkLazy
+    vkColor, vkCurrency, vkDate, vkArray, vkObject, vkRawArg
   );
 
   TASTNode = class;
@@ -160,9 +160,9 @@ type
     DeclaredType: string;
     BuiltinName: string;
     BuiltinHandler: TBuiltinHandler;
-    LazyArgIndexes: TIntegerArray; { argument positions passed as vkLazy AST wrappers }
+    RawArgIndexes: TIntegerArray; { argument positions passed as vkRawArg AST wrappers }
     IsScope: Boolean;
-    LazyNode: TASTNode; { for vkLazy values: condition expression to re-evaluate }
+    RawNode: TASTNode; { for vkRawArg values: the raw, unevaluated argument AST node }
     property ArrayItems: TList read GetArrayItems;
     property Members: TStringList read GetMembers;
     property Params: TStringList read GetParams;
@@ -549,8 +549,8 @@ begin
     DeclaredType := '';
     IsScope := False;
     BuiltinHandler := nil;
-    SetLength(LazyArgIndexes, 0);
-    LazyNode := nil;
+    SetLength(RawArgIndexes, 0);
+    RawNode := nil;
     OpenParamIndex := -1;
   end;
 
@@ -647,9 +647,9 @@ begin
     Result.DeclaredType := DeclaredType;
     Result.BuiltinName := BuiltinName;
     Result.BuiltinHandler := BuiltinHandler;
-    SetLength(Result.LazyArgIndexes, Length(LazyArgIndexes));
-    for I := 0 to High(LazyArgIndexes) do
-      Result.LazyArgIndexes[I] := LazyArgIndexes[I];
+    SetLength(Result.RawArgIndexes, Length(RawArgIndexes));
+    for I := 0 to High(RawArgIndexes) do
+      Result.RawArgIndexes[I] := RawArgIndexes[I];
     Result.IsScope := IsScope;
   if Body <> nil then
     Result.Body := Body.DeepClone;
@@ -775,7 +775,7 @@ begin
     vkDate: Result := 'date';
     vkArray: Result := 'array';
     vkObject: Result := 'object';
-    vkLazy: Result := 'lazy';
+    vkRawArg: Result := 'rawarg';
   else
     Result := 'unknown';
   end;

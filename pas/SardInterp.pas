@@ -58,7 +58,7 @@ type
 
     { Registration ----------------------------------------------------------- }
     procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler); overload;
-    procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler; const LazyIndexes: TIntegerArray); overload;
+    procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler; const RawArgIndexes: TIntegerArray); overload;
 
     { Shared services exposed to libraries ----------------------------------- }
     function NewValue: TSardValue;
@@ -187,7 +187,7 @@ begin
   RegisterBuiltin(Name, Handler, []);
 end;
 
-procedure TInterpreter.RegisterBuiltin(const Name: string; Handler: TBuiltinHandler; const LazyIndexes: TIntegerArray);
+procedure TInterpreter.RegisterBuiltin(const Name: string; Handler: TBuiltinHandler; const RawArgIndexes: TIntegerArray);
 var
   Obj: TSardValue;
   I: Integer;
@@ -196,9 +196,9 @@ begin
   Obj.Kind := vkObject;
   Obj.Callable := True;
   Obj.BuiltinHandler := Handler;
-  SetLength(Obj.LazyArgIndexes, Length(LazyIndexes));
-  for I := 0 to High(LazyIndexes) do
-    Obj.LazyArgIndexes[I] := LazyIndexes[I];
+  SetLength(Obj.RawArgIndexes, Length(RawArgIndexes));
+  for I := 0 to High(RawArgIndexes) do
+    Obj.RawArgIndexes[I] := RawArgIndexes[I];
   FRoot.SetMember(Name, Obj);
   Obj.Release;
 end;
@@ -806,7 +806,7 @@ var
   ArgNodeArr: TASTNodeArray;
   BlockArr: TASTNodeArray;
   BlockCount: Integer;
-  LazyCond: TSardValue;
+  RawArg: TSardValue;
   CallBase: TSardValue;
 
   function IsBuiltinCallable(Obj: TSardValue): Boolean;
@@ -814,13 +814,13 @@ var
     Result := (Obj <> nil) and Obj.Callable and Assigned(Obj.BuiltinHandler);
   end;
 
-  function NeedsLazyArg(const Callee: TSardValue; Index: Integer): Boolean;
+  function NeedsRawArg(const Callee: TSardValue; Index: Integer): Boolean;
   var
     K: Integer;
   begin
     Result := False;
-    for K := 0 to High(Callee.LazyArgIndexes) do
-      if Callee.LazyArgIndexes[K] = Index then
+    for K := 0 to High(Callee.RawArgIndexes) do
+      if Callee.RawArgIndexes[K] = Index then
       begin
         Result := True;
         Exit;
@@ -881,7 +881,7 @@ begin
         raise ESardError.Create('Object is not callable');
 
       try
-        { Build argument values; lazy argument positions are passed as vkLazy AST wrappers }
+        { Build argument values; raw argument positions are passed as vkRawArg AST wrappers }
         ArgNodes := ArgNodeArr;
 
         Args := nil;
@@ -890,12 +890,12 @@ begin
         begin
           if ArgNodes[I] = nil then
             Args[I] := nil
-          else if NeedsLazyArg(Callee, I) then
+          else if NeedsRawArg(Callee, I) then
           begin
-            LazyCond := NewValue;
-            LazyCond.Kind := vkLazy;
-            LazyCond.LazyNode := ArgNodes[I];
-            Args[I] := LazyCond;
+            RawArg := NewValue;
+            RawArg.Kind := vkRawArg;
+            RawArg.RawNode := ArgNodes[I];
+            Args[I] := RawArg;
           end
           else
             Args[I] := EvalExpression(ArgNodes[I], Scope);
@@ -1819,7 +1819,7 @@ function IsImmutableKind(K: TValueKind): Boolean; inline;
 begin
   Result := (K = vkNull) or (K = vkInteger) or (K = vkNumber) or
             (K = vkString) or (K = vkBoolean) or (K = vkColor) or
-            (K = vkCurrency) or (K = vkDate) or (K = vkLazy);
+            (K = vkCurrency) or (K = vkDate) or (K = vkRawArg);
 end;
 
 procedure TInterpreter.SetArrayElement(Arr: TSardValue; Index: Integer; Value: TSardValue);
@@ -2083,9 +2083,9 @@ var
   begin
     if HasCondition then
     begin
-      if (Length(Args) > 0) and (Args[0] <> nil) and (Args[0].Kind = vkLazy) then
+      if (Length(Args) > 0) and (Args[0] <> nil) and (Args[0].Kind = vkRawArg) then
       begin
-        CondVal := InterpObj.EvalExpression(Args[0].LazyNode, Scope);
+        CondVal := InterpObj.EvalExpression(Args[0].RawNode, Scope);
         try
           Result := InterpObj.IsTruthy(CondVal);
         finally
@@ -2260,10 +2260,10 @@ begin
   { Optional second argument: an identifier that names the loop index variable. }
   if Length(Args) > 1 then
   begin
-    if (Args[1] <> nil) and (Args[1].Kind = vkLazy) and
-       (Args[1].LazyNode <> nil) and (Args[1].LazyNode.Kind = nkIdentifier) then
+    if (Args[1] <> nil) and (Args[1].Kind = vkRawArg) and
+       (Args[1].RawNode <> nil) and (Args[1].RawNode.Kind = nkIdentifier) then
     begin
-      VarName := LowerCase(Args[1].LazyNode.Name);
+      VarName := LowerCase(Args[1].RawNode.Name);
       HaveVarName := True;
     end
     else
@@ -2395,10 +2395,10 @@ begin
   if Container = nil then
     raise ESardError.Create('for collection is nil');
 
-  if (Args[1] = nil) or (Args[1].Kind <> vkLazy) or (Args[1].LazyNode = nil) or (Args[1].LazyNode.Kind <> nkIdentifier) then
+  if (Args[1] = nil) or (Args[1].Kind <> vkRawArg) or (Args[1].RawNode = nil) or (Args[1].RawNode.Kind <> nkIdentifier) then
     raise ESardError.Create('for second argument must be a variable name');
 
-  VarName := LowerCase(Args[1].LazyNode.Name);
+  VarName := LowerCase(Args[1].RawNode.Name);
 
   Result := InterpObj.NewValue;
   Result.Kind := vkNull;
