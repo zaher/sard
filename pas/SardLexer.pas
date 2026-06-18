@@ -10,7 +10,7 @@ uses
   SysUtils, SardTypes;
 
 type
-  TLexer = class
+  TLexer = class(TObject)
   private
     FSource: string;
     FPos: Integer;
@@ -372,7 +372,7 @@ var
   S: string;
   Collected: string;
   IsString: Boolean;
-  Parts: array of string;
+  Parts: TStringArray;
   I: Integer;
 
   procedure AddPart(const P: string);
@@ -561,11 +561,11 @@ begin
   begin
     S := ReadIdentifier;
     FTokenText := S;
-    if LowerName(S) = 'mod' then Result := tkMod
-    else if LowerName(S) = 'and' then Result := tkAnd
-    else if LowerName(S) = 'or' then Result := tkOr
-    else if LowerName(S) = 'not' then Result := tkNot
-    else if LowerName(S) = 'none' then Result := tkNone
+    if LowerCase(S) = 'mod' then Result := tkMod
+    else if LowerCase(S) = 'and' then Result := tkAnd
+    else if LowerCase(S) = 'or' then Result := tkOr
+    else if LowerCase(S) = 'not' then Result := tkNot
+    else if LowerCase(S) = 'none' then Result := tkNone
     else Result := tkIdentifier;
     Exit;
   end;

@@ -13,6 +13,8 @@ type
   {$ifndef FPC}
   TStringArray = Array of string;
   {$endif}
+  TIntegerArray = Array of Integer;
+  TBooleanArray = Array of Boolean;
 
   ESardError = class(Exception);
 
@@ -63,7 +65,7 @@ type
     State: THashEntryState;
   end;
 
-  TStringIntHashMap = class
+  TStringIntHashMap = class(TObject)
   private
     FEntries: array of THashEntry;
     FCount: Integer;
@@ -87,11 +89,10 @@ type
   { Built-in function handler signature used by optional libraries.
     Interp is passed as TObject to avoid a circular unit reference; the
     dispatcher in SardInterp passes the interpreter instance directly. }
-  TBuiltinHandler = function(Interp: TObject; Scope: TSardValue;
-    Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  TBuiltinHandler = function(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 
   { AST Node }
-  TASTNode = class
+  TASTNode = class(TObject)
   public
     Kind: TNodeKind;
     TokenText: string;
@@ -106,14 +107,14 @@ type
     IsNone: Boolean;
     Name: string;
     Op: string;
-    Children: array of TASTNode;
+    Children: TASTNodeArray;
     FChildCount: Integer;
     Left, Right: TASTNode;
     Typ: string;
     Params: TStringArray;
     ParamTypes: TStringArray;
     ParamDefaults: TASTNodeArray;
-    ParamOpen: array of Boolean;
+    ParamOpen: TBooleanArray;
     OpenParamIndex: Integer;
     ReturnType: string;
     HasParamList: Boolean;
@@ -127,7 +128,7 @@ type
   end;
   
   { Runtime Value Object }
-  TSardValue = class
+  TSardValue = class(TObject)
   private
     FArrayItems: TList;
     FMembers: TStringList;
@@ -151,15 +152,15 @@ type
     CurrencyValue: Int64;
     Parent: TSardValue;
     Callable: Boolean;
-    ParamDefaults: array of TASTNode;
-    ParamOpen: array of Boolean;
+    ParamDefaults: TASTNodeArray;
+    ParamOpen: TBooleanArray;
     OpenParamIndex: Integer;
     ReturnType: string;
     Body: TASTNode;
     DeclaredType: string;
     BuiltinName: string;
     BuiltinHandler: TBuiltinHandler;
-    LazyArgIndexes: array of Integer; { argument positions passed as vkLazy AST wrappers }
+    LazyArgIndexes: TIntegerArray; { argument positions passed as vkLazy AST wrappers }
     IsScope: Boolean;
     LazyNode: TASTNode; { for vkLazy values: condition expression to re-evaluate }
     property ArrayItems: TList read GetArrayItems;
@@ -188,7 +189,6 @@ type
     Line, Col: Integer;
   end;
 
-function LowerName(const S: string): string;
 function TryHexToLongWord(const S: string; out Value: LongWord): Boolean;
 function IsSpaceChar(C: Char): Boolean;
 function KindToString(K: TTokenKind): string;
@@ -207,11 +207,6 @@ function BooleanValue(V: Boolean): TSardValue;
 function NullValue: TSardValue;
 
 implementation
-
-function LowerName(const S: string): string;
-begin
-  Result := LowerCase(S);
-end;
 
 function TryHexToLongWord(const S: string; out Value: LongWord): Boolean;
 var

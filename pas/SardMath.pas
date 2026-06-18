@@ -30,7 +30,7 @@ implementation
 { Trigonometry --------------------------------------------------------------- }
 
 function BuiltInSin(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -39,7 +39,7 @@ begin
 end;
 
 function BuiltInCos(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -48,7 +48,7 @@ begin
 end;
 
 function BuiltInTan(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -63,7 +63,7 @@ end;
 { Powers, roots, logarithms -------------------------------------------------- }
 
 function BuiltInSqrt(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -76,7 +76,7 @@ begin
 end;
 
 function BuiltInPower(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   Base, Exponent: Double;
@@ -88,7 +88,7 @@ begin
 end;
 
 function BuiltInExp(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -97,7 +97,7 @@ begin
 end;
 
 function BuiltInLn(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -110,7 +110,7 @@ begin
 end;
 
 function BuiltInLog(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -125,7 +125,7 @@ end;
 { Rounding and absolute value ------------------------------------------------ }
 
 function BuiltInAbs(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -136,7 +136,7 @@ begin
 end;
 
 function BuiltInFloor(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -147,7 +147,7 @@ begin
 end;
 
 function BuiltInCeil(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -158,7 +158,7 @@ begin
 end;
 
 function BuiltInRound(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   V: Double;
@@ -171,7 +171,7 @@ end;
 { Min / max ------------------------------------------------------------------ }
 
 function BuiltInMin(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   I: Integer;
@@ -190,7 +190,7 @@ begin
 end;
 
 function BuiltInMax(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   I: Integer;
@@ -211,7 +211,7 @@ end;
 { Constants and random ------------------------------------------------------- }
 
 function BuiltInPi(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -220,7 +220,7 @@ begin
 end;
 
 function BuiltInRandom(Interp: TObject; Scope: TSardValue;
-  Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+  Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
   MaxValue: Integer;

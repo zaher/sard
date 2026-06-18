@@ -14,7 +14,7 @@ uses
   SardTypes;
 
 type
-  TInterpreter = class
+  TInterpreter = class(TObject)
   private
     FRoot: TSardValue;
     FBreakDepth: Integer;
@@ -35,7 +35,7 @@ type
     function EvalMemberAccess(Node: TASTNode; Scope: TSardValue; ForCall: Boolean): TSardValue;
     function EvalActualValue(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalIndexAccess(Node: TASTNode; Scope: TSardValue; ForAssign: Boolean): TSardValue;
-    function CallUserCallable(Callable: TSardValue; Scope: TSardValue; CallBase: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+    function CallUserCallable(Callable: TSardValue; Scope: TSardValue; CallBase: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
     function EvalCall(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalAssign(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalDeclare(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -58,8 +58,7 @@ type
 
     { Registration ----------------------------------------------------------- }
     procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler); overload;
-    procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler;
-      const LazyIndexes: array of Integer); overload;
+    procedure RegisterBuiltin(const Name: string; Handler: TBuiltinHandler; const LazyIndexes: TIntegerArray); overload;
 
     { Shared services exposed to libraries ----------------------------------- }
     function NewValue: TSardValue;
@@ -83,18 +82,18 @@ function IsImmutableKind(K: TValueKind): Boolean; //inline;
 implementation
 
 { Forward declarations of core built-in handlers }
-function BuiltInPrint(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInIf(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInWhile(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInLoop(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInFor(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInBreak(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInExit(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInLen(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInNow(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInTimestamp(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInSleep(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
-function BuiltInClock(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue; forward;
+function BuiltInPrint(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInIf(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInWhile(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInLoop(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInFor(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInBreak(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInExit(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInLen(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInNow(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInTimestamp(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInSleep(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
+function BuiltInClock(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue; forward;
 
 { TInterpreter }
 
@@ -188,8 +187,7 @@ begin
   RegisterBuiltin(Name, Handler, []);
 end;
 
-procedure TInterpreter.RegisterBuiltin(const Name: string; Handler: TBuiltinHandler;
-  const LazyIndexes: array of Integer);
+procedure TInterpreter.RegisterBuiltin(const Name: string; Handler: TBuiltinHandler; const LazyIndexes: TIntegerArray);
 var
   Obj: TSardValue;
   I: Integer;
@@ -427,7 +425,7 @@ begin
     if Node.Op = '==' then
     begin
       if Node.Right.Kind = nkIdentifier then
-        TypeName := LowerName(Node.Right.Name)
+        TypeName := LowerCase(Node.Right.Name)
       else
       begin
         Right := EvalExpression(Node.Right, Scope);
@@ -1075,7 +1073,7 @@ begin
     { Variable declaration without initializer }
     Value := NewValue;
     Value.Kind := vkNull;
-    Value.DeclaredType := LowerName(Node.Typ);
+    Value.DeclaredType := LowerCase(Node.Typ);
     Scope.SetMember(Node.Name, Value);
     Value.Release;
     Result := NewValue;
@@ -1141,7 +1139,7 @@ begin
 
   { Variable declaration with initializer }
   Value := EvalExpression(Node.Children[0], Scope);
-  Value.DeclaredType := LowerName(Node.Typ);
+  Value.DeclaredType := LowerCase(Node.Typ);
   Scope.SetMember(Node.Name, Value);
   Value.Release;
   Result := NewValue;
@@ -1613,7 +1611,7 @@ var
   S: string;
 begin
   Result := NewValue;
-  S := LowerName(TargetType);
+  S := LowerCase(TargetType);
   if S = 'integer' then
   begin
     Result.Kind := vkInteger;
@@ -1848,7 +1846,7 @@ begin
   end;
 end;
 
-function TInterpreter.CallUserCallable(Callable: TSardValue; Scope: TSardValue; CallBase: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function TInterpreter.CallUserCallable(Callable: TSardValue; Scope: TSardValue; CallBase: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   CallableScope, BodyScope: TSardValue;
   I, J, OpenIdx: Integer;
@@ -1978,7 +1976,7 @@ begin
   end;
 end;
 
-function BuiltInPrint(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInPrint(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   I: Integer;
   S: string;
@@ -1993,7 +1991,7 @@ begin
   Result := NullValue;
 end;
 
-function BuiltInIf(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInIf(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   CondValue: Boolean;
   I: Integer;
@@ -2043,7 +2041,7 @@ begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then
         Continue;
-      if LowerName(BlockNode.Name) = 'else-if' then
+      if LowerCase(BlockNode.Name) = 'else-if' then
       begin
         ElseIfCond := InterpObj.EvalExpression(BlockNode.Left, Scope);
         try
@@ -2057,7 +2055,7 @@ begin
           ElseIfCond.Release;
         end;
       end
-      else if LowerName(BlockNode.Name) = 'else' then
+      else if LowerCase(BlockNode.Name) = 'else' then
       begin
         Result.Release;
         Result := ExecuteBody(BlockNode);
@@ -2067,7 +2065,7 @@ begin
   end;
 end;
 
-function BuiltInWhile(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInWhile(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   CondValue: Boolean;
   I: Integer;
@@ -2115,7 +2113,7 @@ begin
       BlockNode := Blocks.Children[I];
       if BlockNode.Name = '' then
         BodyBlock := BlockNode
-      else if LowerName(BlockNode.Name) = 'else' then
+      else if LowerCase(BlockNode.Name) = 'else' then
         ElseBlock := BlockNode;
     end;
   end;
@@ -2163,7 +2161,7 @@ begin
   end;
 end;
 
-function BuiltInLoop(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInLoop(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   Count: Int64;
   CountKnown: Boolean;
@@ -2265,7 +2263,7 @@ begin
     if (Args[1] <> nil) and (Args[1].Kind = vkLazy) and
        (Args[1].LazyNode <> nil) and (Args[1].LazyNode.Kind = nkIdentifier) then
     begin
-      VarName := LowerName(Args[1].LazyNode.Name);
+      VarName := LowerCase(Args[1].LazyNode.Name);
       HaveVarName := True;
     end
     else
@@ -2326,7 +2324,7 @@ begin
   end;
 end;
 
-function BuiltInFor(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInFor(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   I: Integer;
   BlockNode: TASTNode;
@@ -2400,7 +2398,7 @@ begin
   if (Args[1] = nil) or (Args[1].Kind <> vkLazy) or (Args[1].LazyNode = nil) or (Args[1].LazyNode.Kind <> nkIdentifier) then
     raise ESardError.Create('for second argument must be a variable name');
 
-  VarName := LowerName(Args[1].LazyNode.Name);
+  VarName := LowerCase(Args[1].LazyNode.Name);
 
   Result := InterpObj.NewValue;
   Result.Kind := vkNull;
@@ -2462,7 +2460,7 @@ begin
   end;
 end;
 
-function BuiltInBreak(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInBreak(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -2475,7 +2473,7 @@ begin
   Result.Kind := vkNull;
 end;
 
-function BuiltInExit(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInExit(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -2492,7 +2490,7 @@ begin
   Result := InterpObj.ExitValue.Clone(False);
 end;
 
-function BuiltInLen(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInLen(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   Arg: TSardValue;
   InterpObj: TInterpreter;
@@ -2514,7 +2512,7 @@ begin
   end;
 end;
 
-function BuiltInNow(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInNow(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -2524,7 +2522,7 @@ begin
   Result.FloatValue := Now;
 end;
 
-function BuiltInTimestamp(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInTimestamp(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin
@@ -2534,7 +2532,7 @@ begin
   Result.IntValue := DateTimeToUnix(Now);
 end;
 
-function BuiltInSleep(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInSleep(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   Ms: Int64;
   InterpObj: TInterpreter;
@@ -2554,7 +2552,7 @@ begin
   Result.Kind := vkNull;
 end;
 
-function BuiltInClock(Interp: TObject; Scope: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
+function BuiltInClock(Interp: TObject; Scope: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
   InterpObj: TInterpreter;
 begin

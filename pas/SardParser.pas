@@ -10,7 +10,7 @@ uses
   SysUtils, Classes, SardTypes, SardLexer;
 
 type
-  TParser = class
+  TParser = class(TObject)
   private
     FLexer: TLexer;
     FCurrent: TToken;
@@ -163,7 +163,7 @@ function TParser.IsTypeName(const Name: string): Boolean;
 var
   N: string;
 begin
-  N := LowerName(Name);
+  N := LowerCase(Name);
   Result := (N = 'integer') or (N = 'number') or (N = 'string') or (N = 'boolean') or
             (N = 'color') or (N = 'currency') or (N = 'array') or (N = 'object');
 end;
@@ -402,7 +402,7 @@ begin
   IsLVal := LVal.IsLValue;
 
   { Bare builtin call: break (and similar zero-arg builtins) }
-  if (LVal.Kind = nkIdentifier) and (LowerName(LVal.Name) = 'break') and
+  if (LVal.Kind = nkIdentifier) and (LowerCase(LVal.Name) = 'break') and
      ((FCurrent.Kind = tkSemicolon) or (FCurrent.Kind = tkNewLine) or
       (FCurrent.Kind = tkRBrace) or (FCurrent.Kind = tkEOF)) then
   begin
@@ -678,8 +678,8 @@ end;
 function TParser.ParseComparison(StartNode: TASTNode): TASTNode;
 var
   Left, Node, Root, Curr: TASTNode;
-  Ops: array of string;
-  Rights: array of TASTNode;
+  Ops: TStringArray;
+  Rights: TASTNodeArray;
   I, N: Integer;
   IsChain: Boolean;
 
@@ -892,7 +892,7 @@ var
               (FCurrent.Kind = tkDecrement) or (FCurrent.Kind = tkPercent) or
               (FCurrent.Kind = tkDot);
     if (not Result) and (FCurrent.Kind = tkIdentifier) and (CurrNode.Kind = nkCall) and
-       (LowerName(FCurrent.Text) = 'else') then
+       (LowerCase(FCurrent.Text) = 'else') then
       Result := True;
   end;
 
@@ -947,7 +947,7 @@ begin
           begin
             Saved := FCurrent;
             while FCurrent.Kind = tkNewLine do Advance;
-            if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+            if not ((FCurrent.Kind = tkIdentifier) and (LowerCase(FCurrent.Text) = 'else')) then
             begin
               FLookahead := FCurrent;
               FHasLookahead := True;
@@ -962,7 +962,7 @@ begin
             begin
               Saved := FCurrent;
               while FCurrent.Kind = tkNewLine do Advance;
-              if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+              if not ((FCurrent.Kind = tkIdentifier) and (LowerCase(FCurrent.Text) = 'else')) then
               begin
                 FLookahead := FCurrent;
                 FHasLookahead := True;
@@ -976,8 +976,8 @@ begin
             { allow newline between named block keyword (e.g. else) and its block }
             while FCurrent.Kind = tkNewLine do Advance;
             { Special case: else if with condition and block }
-            if (LowerName(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
-               (LowerName(FCurrent.Text) = 'if') then
+            if (LowerCase(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
+               (LowerCase(FCurrent.Text) = 'if') then
             begin
               Advance;
               while FCurrent.Kind = tkNewLine do Advance;
@@ -1022,7 +1022,7 @@ begin
           begin
             Saved := FCurrent;
             while FCurrent.Kind = tkNewLine do Advance;
-            if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+            if not ((FCurrent.Kind = tkIdentifier) and (LowerCase(FCurrent.Text) = 'else')) then
             begin
               FLookahead := FCurrent;
               FHasLookahead := True;
@@ -1037,7 +1037,7 @@ begin
             begin
               Saved := FCurrent;
               while FCurrent.Kind = tkNewLine do Advance;
-              if not ((FCurrent.Kind = tkIdentifier) and (LowerName(FCurrent.Text) = 'else')) then
+              if not ((FCurrent.Kind = tkIdentifier) and (LowerCase(FCurrent.Text) = 'else')) then
               begin
                 FLookahead := FCurrent;
                 FHasLookahead := True;
@@ -1050,8 +1050,8 @@ begin
             Advance;
             while FCurrent.Kind = tkNewLine do Advance;
             { Special case: else if with condition and block }
-            if (LowerName(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
-               (LowerName(FCurrent.Text) = 'if') then
+            if (LowerCase(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
+               (LowerCase(FCurrent.Text) = 'if') then
             begin
               Advance;
               while FCurrent.Kind = tkNewLine do Advance;
@@ -1110,8 +1110,8 @@ begin
           { allow newline between named block keyword (e.g. else) and its block }
           while FCurrent.Kind = tkNewLine do Advance;
           { Special case: else if with condition and block }
-          if (LowerName(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
-             (LowerName(FCurrent.Text) = 'if') then
+          if (LowerCase(Saved.Text) = 'else') and (FCurrent.Kind = tkIdentifier) and
+             (LowerCase(FCurrent.Text) = 'if') then
           begin
             Advance;
             while FCurrent.Kind = tkNewLine do Advance;
