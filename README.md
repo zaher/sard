@@ -219,7 +219,7 @@ d = date(0);              // epoch date
 | Operator | Description |
 |----------|-------------|
 | `&` `and` | Logical AND |
-| `\|` `or` | Logical OR |
+| `|` `or` | Logical OR |
 | `!` `not` | Logical NOT |
 
 ### Precedence (high to low)
@@ -228,7 +228,7 @@ d = date(0);              // epoch date
 3. `+`, `-`
 4. `=`, `<>`, `!=`, `<`, `>`, `<=`, `>=` (chaining supported)
 5. `&`, `and`
-6. `\|`, `or`
+6. `|`, `or`
 7. `==` (type comparison)
 
 ## Special Features
@@ -551,7 +551,7 @@ print(sum);  // 150
 
 ## Language Philosophy
 
-1. **Consistency**: Everything is an object; blocks are expressions
+1. **Consistency**: Everything is an object; blocks are expressions, except operators and flow controls
 2. **Flexibility**: Choose dynamic or static typing as needed
 3. **Precision**: Built-in support for financial calculations
 4. **Extensibility**: All constructs can be overridden or extended
@@ -559,7 +559,7 @@ print(sum);  // 150
 
 ## Implementation Notes
 
-- Can be embedded in host applications (Python, C, Rust, etc.)
+- Can be embedded in host applications (Pascal, JS, C, Rust, Python, etc.)
 - Supports multi-threaded execution with independent AST trees
 - UTF-8 source encoding throughout
 - Case-insensitive identifiers

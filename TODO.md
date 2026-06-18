@@ -12,7 +12,7 @@
 --* Sleep(ms)
 --* Clock
 --* Add Now()
-* Math functons (Round, Abs, Min, Max, Sin, Cos, Tan)
+--* Math functons (Round, Abs, Min, Max, Sin, Cos, Tan)
 
 * Date operators Print(0t2026_10_10 - 0t2026_10_11)
 * Functions in core (Timestamp: Integer, Time, Format)

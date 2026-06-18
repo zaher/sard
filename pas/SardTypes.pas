@@ -96,6 +96,15 @@ type
 
   { Runtime Value Object }
   TSardValue = class
+  private
+    FArrayItems: TList;
+    FMembers: TStringList;
+    FParams: TStringList;
+    FParamTypes: TStringList;
+    function GetArrayItems: TList;
+    function GetMembers: TStringList;
+    function GetParams: TStringList;
+    function GetParamTypes: TStringList;
   public
     RefCount: Integer;
     Kind: TValueKind;
@@ -105,12 +114,8 @@ type
     BoolValue: Boolean;
     ColorValue: LongWord;
     CurrencyValue: Int64;
-    ArrayItems: TList;      // TSardValue pointers
-    Members: TStringList;   // name -> TSardValue
     Parent: TSardValue;
     Callable: Boolean;
-    Params: TStringList;
-    ParamTypes: TStringList;
     ParamDefaults: array of TASTNode;
     ParamOpen: array of Boolean;
     OpenParamIndex: Integer;
@@ -122,6 +127,10 @@ type
     LazyArgIndexes: array of Integer; { argument positions passed as vkLazy AST wrappers }
     IsScope: Boolean;
     LazyNode: TASTNode; { for vkLazy values: condition expression to re-evaluate }
+    property ArrayItems: TList read GetArrayItems;
+    property Members: TStringList read GetMembers;
+    property Params: TStringList read GetParams;
+    property ParamTypes: TStringList read GetParamTypes;
     constructor Create;
     destructor Destroy; override;
     procedure AddRef;
@@ -129,7 +138,9 @@ type
     procedure SetParent(P: TSardValue);
     function Clone(Deep: Boolean = True): TSardValue;
     procedure SetMember(const Name: string; Value: TSardValue);
+    procedure SetMemberAt(Index: Integer; Value: TSardValue);
     function GetMember(const Name: string): TSardValue;
+    function FindLocalMember(const Name: string; out Index: Integer): Boolean;
     function HasLocalMember(const Name: string): Boolean;
     function KindName: string;
     function AsString: string;
@@ -332,16 +343,46 @@ end;
 
 { TSardValue }
 
+function TSardValue.GetArrayItems: TList;
+begin
+  if FArrayItems = nil then
+    FArrayItems := TList.Create;
+  Result := FArrayItems;
+end;
+
+function TSardValue.GetMembers: TStringList;
+begin
+  if FMembers = nil then
+  begin
+    FMembers := TStringList.Create;
+    FMembers.CaseSensitive := False;
+  end;
+  Result := FMembers;
+end;
+
+function TSardValue.GetParams: TStringList;
+begin
+  if FParams = nil then
+    FParams := TStringList.Create;
+  Result := FParams;
+end;
+
+function TSardValue.GetParamTypes: TStringList;
+begin
+  if FParamTypes = nil then
+    FParamTypes := TStringList.Create;
+  Result := FParamTypes;
+end;
+
 constructor TSardValue.Create;
 begin
   inherited;
   RefCount := 1;
   Kind := vkNull;
-  ArrayItems := TList.Create;
-    Members := TStringList.Create;
-    Members.CaseSensitive := False;
-  Params := TStringList.Create;
-  ParamTypes := TStringList.Create;
+  FArrayItems := nil;
+  FMembers := nil;
+  FParams := nil;
+  FParamTypes := nil;
   Parent := nil;
     Callable := False;
     Body := nil;
@@ -351,7 +392,7 @@ begin
     SetLength(LazyArgIndexes, 0);
     LazyNode := nil;
     OpenParamIndex := -1;
-end;
+  end;
 
 procedure TSardValue.AddRef;
 begin
@@ -375,20 +416,26 @@ var
   I: Integer;
   V: TSardValue;
 begin
-  for I := 0 to Members.Count - 1 do
+  if FMembers <> nil then
   begin
-    V := TSardValue(Members.Objects[I]);
-    if V <> nil then V.Release;
+    for I := 0 to FMembers.Count - 1 do
+    begin
+      V := TSardValue(FMembers.Objects[I]);
+      if V <> nil then V.Release;
+    end;
+    FMembers.Free;
   end;
-  Members.Free;
-  for I := 0 to ArrayItems.Count - 1 do
+  if FArrayItems <> nil then
   begin
-    V := TSardValue(ArrayItems[I]);
-    if V <> nil then V.Release;
+    for I := 0 to FArrayItems.Count - 1 do
+    begin
+      V := TSardValue(FArrayItems[I]);
+      if V <> nil then V.Release;
+    end;
+    FArrayItems.Free;
   end;
-  ArrayItems.Free;
-  Params.Free;
-  ParamTypes.Free;
+  if FParams <> nil then FParams.Free;
+  if FParamTypes <> nil then FParamTypes.Free;
   for I := 0 to High(ParamDefaults) do
     ParamDefaults[I].Free;
   Body.Free;
@@ -409,8 +456,10 @@ begin
   Result.ColorValue := ColorValue;
   Result.CurrencyValue := CurrencyValue;
   Result.Callable := Callable;
-  Result.Params.Text := Params.Text;
-  Result.ParamTypes.Text := ParamTypes.Text;
+  if FParams <> nil then
+    Result.Params.Text := FParams.Text;
+  if FParamTypes <> nil then
+    Result.ParamTypes.Text := FParamTypes.Text;
   SetLength(Result.ParamDefaults, Length(ParamDefaults));
   for I := 0 to High(ParamDefaults) do
     if ParamDefaults[I] <> nil then
@@ -432,33 +481,37 @@ begin
     Result.Body := Body.DeepClone;
   if Deep then
   begin
-    for I := 0 to ArrayItems.Count - 1 do
-    begin
-      V := TSardValue(ArrayItems[I]);
-      if V <> nil then
-        Result.ArrayItems.Add(V.Clone(True));
-    end;
-    for I := 0 to Members.Count - 1 do
-    begin
-      V := TSardValue(Members.Objects[I]);
-      if V <> nil then
-        Result.Members.AddObject(Members[I], V.Clone(True));
-    end;
+    if FArrayItems <> nil then
+      for I := 0 to FArrayItems.Count - 1 do
+      begin
+        V := TSardValue(FArrayItems[I]);
+        if V <> nil then
+          Result.ArrayItems.Add(V.Clone(True));
+      end;
+    if FMembers <> nil then
+      for I := 0 to FMembers.Count - 1 do
+      begin
+        V := TSardValue(FMembers.Objects[I]);
+        if V <> nil then
+          Result.Members.AddObject(FMembers[I], V.Clone(True));
+      end;
   end
   else
   begin
-    for I := 0 to ArrayItems.Count - 1 do
-    begin
-      V := TSardValue(ArrayItems[I]);
-      if V <> nil then V.AddRef;
-      Result.ArrayItems.Add(V);
-    end;
-    for I := 0 to Members.Count - 1 do
-    begin
-      V := TSardValue(Members.Objects[I]);
-      if V <> nil then V.AddRef;
-      Result.Members.AddObject(Members[I], V);
-    end;
+    if FArrayItems <> nil then
+      for I := 0 to FArrayItems.Count - 1 do
+      begin
+        V := TSardValue(FArrayItems[I]);
+        if V <> nil then V.AddRef;
+        Result.ArrayItems.Add(V);
+      end;
+    if FMembers <> nil then
+      for I := 0 to FMembers.Count - 1 do
+      begin
+        V := TSardValue(FMembers.Objects[I]);
+        if V <> nil then V.AddRef;
+        Result.Members.AddObject(FMembers[I], V);
+      end;
   end;
 end;
 
@@ -467,15 +520,27 @@ var
   Idx: Integer;
   Old: TSardValue;
 begin
-  Idx := Members.IndexOf(LowerName(Name));
+  Idx := -1;
+  if FMembers <> nil then
+    Idx := FMembers.IndexOf(Name);
   if Idx >= 0 then
   begin
-    Old := TSardValue(Members.Objects[Idx]);
+    Old := TSardValue(FMembers.Objects[Idx]);
     if Old <> nil then Old.Release;
-    Members.Objects[Idx] := Value;
+    FMembers.Objects[Idx] := Value;
   end
   else
-    Members.AddObject(LowerName(Name), Value);
+    Members.AddObject(Name, Value);
+  if Value <> nil then Value.AddRef;
+end;
+
+procedure TSardValue.SetMemberAt(Index: Integer; Value: TSardValue);
+var
+  Old: TSardValue;
+begin
+  Old := TSardValue(FMembers.Objects[Index]);
+  if Old <> nil then Old.Release;
+  FMembers.Objects[Index] := Value;
   if Value <> nil then Value.AddRef;
 end;
 
@@ -487,7 +552,7 @@ begin
   Curr := Self;
   while Curr <> nil do
   begin
-    Idx := Curr.Members.IndexOf(LowerName(Name));
+    Idx := Curr.Members.IndexOf(Name);
     if Idx >= 0 then
     begin
       Result := TSardValue(Curr.Members.Objects[Idx]);
@@ -500,7 +565,21 @@ end;
 
 function TSardValue.HasLocalMember(const Name: string): Boolean;
 begin
-  Result := Members.IndexOf(LowerName(Name)) >= 0;
+  Result := (FMembers <> nil) and (FMembers.IndexOf(Name) >= 0);
+end;
+
+function TSardValue.FindLocalMember(const Name: string; out Index: Integer): Boolean;
+begin
+  if FMembers = nil then
+  begin
+    Index := -1;
+    Result := False;
+  end
+  else
+  begin
+    Index := FMembers.IndexOf(Name);
+    Result := Index >= 0;
+  end;
 end;
 
 function TSardValue.KindName: string;
@@ -546,11 +625,14 @@ begin
     vkArray:
       begin
         S := '[';
-        for I := 0 to ArrayItems.Count - 1 do
+        if FArrayItems <> nil then
         begin
-          if I > 0 then S := S + ', ';
-          V := TSardValue(ArrayItems[I]);
-          if V <> nil then S := S + V.AsString;
+          for I := 0 to FArrayItems.Count - 1 do
+          begin
+            if I > 0 then S := S + ', ';
+            V := TSardValue(FArrayItems[I]);
+            if V <> nil then S := S + V.AsString;
+          end;
         end;
         S := S + ']';
         Result := S;

@@ -1,0 +1,8 @@
+// Variable read only - measures identifier eval overhead
+sum = 0
+start = clock()
+loop(1000000) {
+    sum
+}
+elapsed = clock() - start
+print("ident loop 1M: ", elapsed, "ms")

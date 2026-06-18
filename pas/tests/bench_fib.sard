@@ -1,0 +1,13 @@
+// Recursive Fibonacci benchmark (heavy callable calls)
+fib : (n) {
+    = if (n <= 1) {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+}
+
+start = clock()
+result = fib(25)
+elapsed = clock() - start
+print("fib(25) = ", result, " in ", elapsed, "ms")

@@ -334,6 +334,7 @@ begin
     if (FCurrent.Kind = tkLBrace) or (FCurrent.Kind = tkLParen) then
     begin
       RetType := TypeName;
+      ParamDefaults := nil;
       if FCurrent.Kind = tkLParen then
       begin
         ParseTypedParameterList(ParamNames, ParamTypes, ParamDefaults, OpenIndex, RetType);

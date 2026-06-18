@@ -1,0 +1,7 @@
+// Literal eval only - measures per-statement eval overhead
+start = clock()
+loop(1000000) {
+    1
+}
+elapsed = clock() - start
+print("literal loop 1M: ", elapsed, "ms")

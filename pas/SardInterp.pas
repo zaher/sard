@@ -13,6 +13,8 @@ uses
   {$endif}
   SardTypes;
 
+function IsImmutableKind(K: TValueKind): Boolean; inline;
+
 type
   TInterpreter = class
   private
@@ -23,7 +25,7 @@ type
     FExitValue: TSardValue;
     FHasExit: Boolean;
     FNoAutoCall: Boolean;
-    function FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue): TSardValue;
+    function FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue; out MemberIndex: Integer): TSardValue;
     function EvalNode(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalLiteral(Node: TASTNode): TSardValue;
     function EvalIdentifier(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -31,7 +33,7 @@ type
     function EvalUnary(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalPrefixIncDec(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalPostfixIncDec(Node: TASTNode; Scope: TSardValue): TSardValue;
-    function EvalLValue(Node: TASTNode; Scope: TSardValue; out Owner: TSardValue; out Name: string; out Index: Integer; out IsIndexed: Boolean; out OwnerOwned: Boolean): Boolean;
+    function EvalLValue(Node: TASTNode; Scope: TSardValue; out Owner: TSardValue; out Name: string; out Index: Integer; out IsIndexed: Boolean; out OwnerOwned: Boolean; out Existing: TSardValue; out MemberIndex: Integer): Boolean;
     function EvalMemberAccess(Node: TASTNode; Scope: TSardValue; ForCall: Boolean): TSardValue;
     function EvalActualValue(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalIndexAccess(Node: TASTNode; Scope: TSardValue; ForAssign: Boolean): TSardValue;
@@ -159,20 +161,19 @@ begin
   Result.SetParent(Parent);
 end;
 
-function TInterpreter.FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue): TSardValue;
+function TInterpreter.FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue; out MemberIndex: Integer): TSardValue;
 var
   Curr: TSardValue;
   Idx: Integer;
-  N: string;
 begin
-  N := LowerName(Name);
   Curr := Scope;
+  MemberIndex := -1;
   while Curr <> nil do
   begin
-    Idx := Curr.Members.IndexOf(N);
-    if Idx >= 0 then
+    if Curr.FindLocalMember(Name, Idx) then
     begin
       Owner := Curr;
+      MemberIndex := Idx;
       Result := TSardValue(Curr.Members.Objects[Idx]);
       Exit;
     end;
@@ -378,8 +379,9 @@ var
   Owner: TSardValue;
   RootMem: TSardValue;
   CallNode: TASTNode;
+  DummyIdx: Integer;
 begin
-  Obj := FindVariable(Scope, Node.Name, Owner);
+  Obj := FindVariable(Scope, Node.Name, Owner, DummyIdx);
   if Obj = nil then
   begin
     RootMem := FRoot.GetMember(Node.Name);
@@ -394,8 +396,8 @@ begin
     FRoot.SetMember(Node.Name, Obj);
     Obj.Release;
   end;
-  Result := Obj.Clone(False);
-  Result.Parent := Obj.Parent;
+  Obj.AddRef;
+  Result := Obj;
 
   { Parameterless callables can be invoked without parentheses, like in Pascal. }
   if (not FNoAutoCall) and Result.Callable and (Result.Params.Count = 0) then
@@ -455,51 +457,51 @@ begin
     Right := EvalExpression(Node.Right, Scope);
     try
       if (Node.Op = 'and') or (Node.Op = '&') then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
-        Result.BoolValue := IsTruthy(Left) and IsTruthy(Right);
+          begin
+            Result := NewValue;
+            Result.Kind := vkBoolean;
+            Result.BoolValue := IsTruthy(Left) and IsTruthy(Right);
       end
       else if (Node.Op = 'or') or (Node.Op = '|') then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
-        Result.BoolValue := IsTruthy(Left) or IsTruthy(Right);
+          begin
+            Result := NewValue;
+            Result.Kind := vkBoolean;
+            Result.BoolValue := IsTruthy(Left) or IsTruthy(Right);
       end
       else if Node.Op = '=' then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
-        Result.BoolValue := ObjectsEqual(Left, Right);
+          begin
+            Result := NewValue;
+            Result.Kind := vkBoolean;
+            Result.BoolValue := ObjectsEqual(Left, Right);
       end
       else if (Node.Op = '<>') or (Node.Op = '!=') then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
-        Result.BoolValue := not ObjectsEqual(Left, Right);
-      end
+          begin
+                Result := NewValue;
+                Result.Kind := vkBoolean;
+                Result.BoolValue := not ObjectsEqual(Left, Right);
+              end
       else if Node.Op = '<' then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
+              begin
+                Result := NewValue;
+                Result.Kind := vkBoolean;
         Result.BoolValue := CompareValues(Left, Right) < 0;
-      end
+              end
       else if Node.Op = '>' then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
+            begin
+              Result := NewValue;
+              Result.Kind := vkBoolean;
         Result.BoolValue := CompareValues(Left, Right) > 0;
       end
       else if Node.Op = '<=' then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
+          begin
+              Result := NewValue;
+              Result.Kind := vkBoolean;
         Result.BoolValue := CompareValues(Left, Right) <= 0;
-      end
+            end
       else if Node.Op = '>=' then
-      begin
-        Result := NewValue;
-        Result.Kind := vkBoolean;
+            begin
+              Result := NewValue;
+              Result.Kind := vkBoolean;
         Result.BoolValue := CompareValues(Left, Right) >= 0;
       end
       else
@@ -531,12 +533,14 @@ var
   Index: Integer;
   IsIndexed: Boolean;
   OwnerOwned: Boolean;
+  Existing: TSardValue;
   Target, NewVal: TSardValue;
   OldInt: Int64;
   NewInt: Int64;
   Arr: TSardValue;
+  MemberIndex: Integer;
 begin
-  if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned) then
+  if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned, Existing, MemberIndex) then
     raise ESardError.Create('Prefix inc/dec requires lvalue');
 
   try
@@ -567,9 +571,9 @@ begin
         Target.IntValue := 0;
         Scope.SetMember(Name, Target);
         Target.Release;
-        Owner := Scope;
+        Existing := Target;
       end;
-      Target := Owner.GetMember(Name);
+      Target := Existing;
       if Target = nil then
         raise ESardError.CreateFmt('Internal error: lvalue not found: %s', [Name]);
       OldInt := Target.IntValue;
@@ -591,6 +595,8 @@ var
   Index: Integer;
   IsIndexed: Boolean;
   OwnerOwned: Boolean;
+  Existing: TSardValue;
+  MemberIndex: Integer;
   Target: TSardValue;
   OldInt: Int64;
   NewInt: Int64;
@@ -613,7 +619,7 @@ begin
     Exit;
   end;
 
-  if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned) then
+  if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned, Existing, MemberIndex) then
     raise ESardError.Create('Postfix inc/dec requires lvalue');
 
   try
@@ -640,9 +646,9 @@ begin
         Target.IntValue := 0;
         Scope.SetMember(Name, Target);
         Target.Release;
-        Owner := Scope;
+        Existing := Target;
       end;
-      Target := Owner.GetMember(Name);
+      Target := Existing;
       if Target = nil then
         raise ESardError.CreateFmt('Internal error: lvalue not found: %s', [Name]);
       OldInt := Target.IntValue;
@@ -681,7 +687,7 @@ begin
     FNoAutoCall := SavedNoAutoCall;
   end;
   try
-    MemberName := LowerName(Node.Right.Name);
+    MemberName := Node.Right.Name;
     Found := False;
     Curr := Base;
     while Curr <> nil do
@@ -733,12 +739,13 @@ var
   Idx: Integer;
   Found: Boolean;
   IndexObj: TSardValue;
+  DummyIdx: Integer;
 begin
   Member := Default(TSardValue);
   case Node.Kind of
     nkIdentifier:
       begin
-        Result := FindVariable(Scope, Node.Name, Base);
+        Result := FindVariable(Scope, Node.Name, Base, DummyIdx);
         if Result = nil then
           Result := FRoot.GetMember(Node.Name);
         if Result = nil then
@@ -749,7 +756,7 @@ begin
       begin
         Base := EvalActualValue(Node.Left, Scope);
         try
-          MemberName := LowerName(Node.Right.Name);
+          MemberName := Node.Right.Name;
           Found := False;
           Curr := Base;
           while Curr <> nil do
@@ -843,9 +850,9 @@ var
   Blocks: TASTNode;
   I, J: Integer;
   ArgListNode: TASTNode;
-  ArgsList: TList;
-  ArgNodeList: TList;
-  BlocksList: TList;
+  ArgNodeArr: array of TASTNode;
+  BlockArr: array of TASTNode;
+  BlockCount: Integer;
   LazyCond: TSardValue;
   CallBase: TSardValue;
 
@@ -869,9 +876,9 @@ var
 
 begin
   Result := nil;
-  ArgsList := TList.Create;
-  ArgNodeList := TList.Create;
-  BlocksList := TList.Create;
+  BlockCount := 0;
+  SetLength(BlockArr, Length(Node.Children));
+  SetLength(ArgNodeArr, 0);
   try
     { Separate argument lists and blocks from children }
     for I := 0 to High(Node.Children) do
@@ -879,22 +886,24 @@ begin
       if Node.Children[I].Name = 'args' then
       begin
         ArgListNode := Node.Children[I];
+        SetLength(ArgNodeArr, Length(ArgListNode.Children));
         for J := 0 to High(ArgListNode.Children) do
-        begin
-          ArgNodeList.Add(ArgListNode.Children[J]);
-        end;
+          ArgNodeArr[J] := ArgListNode.Children[J];
       end
       else
-        BlocksList.Add(Node.Children[I]);
+      begin
+        BlockArr[BlockCount] := Node.Children[I];
+        Inc(BlockCount);
+      end;
     end;
 
     Blocks := nil;
-    if BlocksList.Count > 0 then
+    if BlockCount > 0 then
     begin
       Blocks := TASTNode.Create(nkStatements, '', 0, 0);
       Blocks.Name := 'blocks';
-      for I := 0 to BlocksList.Count - 1 do
-        Blocks.AddChild(TASTNode(BlocksList[I]));
+      for I := 0 to BlockCount - 1 do
+        Blocks.AddChild(BlockArr[I]);
     end;
 
     { If the callee is a member access, evaluate its receiver once so the method
@@ -918,13 +927,10 @@ begin
 
       try
         { Build argument values; lazy argument positions are passed as vkLazy AST wrappers }
-        ArgNodes := nil;
-        SetLength(ArgNodes, ArgNodeList.Count);
-        for I := 0 to ArgNodeList.Count - 1 do
-          ArgNodes[I] := TASTNode(ArgNodeList[I]);
+        ArgNodes := ArgNodeArr;
 
         Args := nil;
-        SetLength(Args, ArgNodeList.Count);
+        SetLength(Args, Length(ArgNodes));
         for I := 0 to High(ArgNodes) do
         begin
           if ArgNodes[I] = nil then
@@ -969,9 +975,6 @@ begin
       end;
     end;
   finally
-    ArgsList.Free;
-    ArgNodeList.Free;
-    BlocksList.Free;
   end;
 end;
 
@@ -982,9 +985,9 @@ var
   Index: Integer;
   IsIndexed: Boolean;
   OwnerOwned: Boolean;
-  Value, Coerced, Existing: TSardValue;
-  Owner2: TSardValue;
-  Idx: Integer;
+  Existing: TSardValue;
+  MemberIndex: Integer;
+  Value, Coerced: TSardValue;
   TargetType: string;
   Arr: TSardValue;
   CloneValue: TSardValue;
@@ -1015,7 +1018,7 @@ var
   end;
 
 begin
-  if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned) then
+  if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned, Existing, MemberIndex) then
     raise ESardError.Create('Invalid assignment target');
 
   { Accountant calculator mode at top level: check RHS pattern }
@@ -1055,50 +1058,44 @@ begin
       if Arr.Kind <> vkArray then
         raise ESardError.Create('Cannot assign to index of non-array');
       SetArrayElement(Arr, Index, Value);
-      Result := Value.Clone(False);
+      Result := Value;
+      Result.AddRef;
     end
     else
     begin
-      Owner2 := nil;
-      if Node.Left.Kind = nkIdentifier then
-        Existing := FindVariable(Scope, Name, Owner2)
-      else if Node.Left.Kind = nkMemberAccess then
-      begin
-        Existing := Owner.GetMember(Name);
-        Owner2 := Owner;
-      end
-      else
-        Existing := nil;
-      if Existing <> nil then
+      { Coerce to declared type if the existing variable has one }
+      if (Existing <> nil) and (Existing.DeclaredType <> '') then
       begin
         TargetType := Existing.DeclaredType;
-        if TargetType <> '' then
-        begin
-          Coerced := CoerceValue(Value, TargetType);
-          Value.Release;
-          Value := Coerced;
-        end;
-        Idx := Owner2.Members.IndexOf(LowerName(Name));
-        if Idx >= 0 then
-        begin
-          CloneValue := Value.Clone(True);
-          TSardValue(Owner2.Members.Objects[Idx]).Release;
-          Owner2.Members.Objects[Idx] := CloneValue;
-          CloneValue.AddRef; { member list owns a reference }
-          CloneValue.Release; { release the local creation reference }
-        end;
-        Result := Value.Clone(False);
+        Coerced := CoerceValue(Value, TargetType);
+        Value.Release;
+        Value := Coerced;
+      end;
+
+      { Store value. Use SetMemberAt fast path when we already know the index. }
+      if IsImmutableKind(Value.Kind) then
+      begin
+        if MemberIndex >= 0 then
+          Owner.SetMemberAt(MemberIndex, Value)
+        else if Owner = nil then
+          Scope.SetMember(Name, Value)
+        else
+          Owner.SetMember(Name, Value);
       end
       else
       begin
         CloneValue := Value.Clone(True);
-        if Owner = nil then
+        if MemberIndex >= 0 then
+          Owner.SetMemberAt(MemberIndex, CloneValue)
+        else if Owner = nil then
           Scope.SetMember(Name, CloneValue)
         else
           Owner.SetMember(Name, CloneValue);
         CloneValue.Release;
-        Result := Value.Clone(False);
       end;
+
+      Result := Value;
+      Result.AddRef;
     end;
   finally
     if OwnerOwned then Owner.Release;
@@ -1250,8 +1247,9 @@ var
   Owner: TSardValue;
   RootMem: TSardValue;
   I: Integer;
+  DummyIdx: Integer;
 begin
-  Proto := FindVariable(Scope, Node.Name, Owner);
+  Proto := FindVariable(Scope, Node.Name, Owner, DummyIdx);
   if Proto = nil then
   begin
     RootMem := FRoot.GetMember(Node.Name);
@@ -1273,8 +1271,9 @@ var
   Owner: TSardValue;
   RootMem: TSardValue;
   I: Integer;
+  DummyIdx: Integer;
 begin
-  Proto := FindVariable(Scope, Node.Name, Owner);
+  Proto := FindVariable(Scope, Node.Name, Owner, DummyIdx);
   if Proto = nil then
   begin
     RootMem := FRoot.GetMember(Node.Name);
@@ -1300,6 +1299,8 @@ var
   Index: Integer;
   IsIndexed: Boolean;
   OwnerOwned: Boolean;
+  Existing: TSardValue;
+  MemberIndex: Integer;
   Target: TSardValue;
   Arr: TSardValue;
   Idx: Integer;
@@ -1319,7 +1320,7 @@ begin
 
   if Node.Left.Kind = nkIdentifier then
   begin
-    Target := FindVariable(Scope, Node.Left.Name, Owner);
+    Target := FindVariable(Scope, Node.Left.Name, Owner, MemberIndex);
     if Target = nil then Target := FRoot.GetMember(Node.Left.Name);
     if Target = nil then
       raise ESardError.CreateFmt('Undefined identifier: %s', [Node.Left.Name]);
@@ -1330,7 +1331,7 @@ begin
   begin
     Base := EvalExpression(Node.Left.Left, Scope);
     try
-      MemberName := LowerName(Node.Left.Right.Name);
+      MemberName := Node.Left.Right.Name;
       Found := False;
       Curr := Base;
       while Curr <> nil do
@@ -1356,7 +1357,7 @@ begin
   end
   else if Node.Left.Kind = nkIndexAccess then
   begin
-    if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned) then
+    if not EvalLValue(Node.Left, Scope, Owner, Name, Index, IsIndexed, OwnerOwned, Existing, MemberIndex) then
       raise ESardError.Create('Invalid reference target');
     try
       if not IsIndexed then
@@ -1384,7 +1385,7 @@ begin
   end;
 end;
 
-function TInterpreter.EvalLValue(Node: TASTNode; Scope: TSardValue; out Owner: TSardValue; out Name: string; out Index: Integer; out IsIndexed: Boolean; out OwnerOwned: Boolean): Boolean;
+function TInterpreter.EvalLValue(Node: TASTNode; Scope: TSardValue; out Owner: TSardValue; out Name: string; out Index: Integer; out IsIndexed: Boolean; out OwnerOwned: Boolean; out Existing: TSardValue; out MemberIndex: Integer): Boolean;
 var
   IndexObj: TSardValue;
 
@@ -1394,12 +1395,13 @@ var
     LMemberName: string;
     LIdx: Integer;
     LFound: Boolean;
+    LDummyIdx: Integer;
   begin
     LMember := Default(TSardValue);
     case ANode.Kind of
       nkIdentifier:
         begin
-          Result := FindVariable(Scope, ANode.Name, LBase);
+          Result := FindVariable(Scope, ANode.Name, LBase, LDummyIdx);
           if Result = nil then
             Result := FRoot.GetMember(ANode.Name);
           if Result = nil then
@@ -1410,7 +1412,7 @@ var
         begin
           LBase := EvalActual(ANode.Left);
           try
-            LMemberName := LowerName(ANode.Right.Name);
+            LMemberName := ANode.Right.Name;
             LFound := False;
             LCurr := LBase;
             while LCurr <> nil do
@@ -1463,18 +1465,24 @@ begin
   Index := 0;
   IsIndexed := False;
   OwnerOwned := False;
+  Existing := nil;
+  MemberIndex := -1;
 
   if Node.Kind = nkIdentifier then
   begin
     Name := Node.Name;
-    //Val := FindVariable(Scope, Name, Owner);
+    Existing := FindVariable(Scope, Name, Owner, MemberIndex);
     Result := True;
   end
   else if Node.Kind = nkMemberAccess then
   begin
     Owner := EvalActual(Node.Left);
     OwnerOwned := True;
-    Name := LowerName(Node.Right.Name);
+    Name := Node.Right.Name;
+    Existing := Owner.GetMember(Name);
+    if Owner.FindLocalMember(Name, MemberIndex) then
+    else
+      MemberIndex := -1;
     Result := True;
   end
   else if Node.Kind = nkIndexAccess then
@@ -1513,9 +1521,9 @@ begin
     else if Op = '-' then Result.CurrencyValue := CV1 - CV2
     else if Op = '*' then Result.CurrencyValue := (CV1 * CV2) div 1000000
     else if Op = '/' then
-    begin
-      if CV2 = 0 then raise ESardError.Create('Division by zero');
-      Result.CurrencyValue := (CV1 * 1000000) div CV2;
+        begin
+          if CV2 = 0 then raise ESardError.Create('Division by zero');
+          Result.CurrencyValue := (CV1 * 1000000) div CV2;
     end
     else if Op = 'mod' then Result.CurrencyValue := CV1 mod CV2
     else if Op = '^' then Result.CurrencyValue := Round(Power(CV1 / 1000000, CV2 / 1000000) * 1000000)
@@ -1563,9 +1571,9 @@ begin
     else if Op = '-' then Result.FloatValue := D1 - D2
     else if Op = '*' then Result.FloatValue := D1 * D2
     else if Op = '/' then
-    begin
-      if D2 = 0 then raise ESardError.Create('Division by zero');
-      Result.FloatValue := D1 / D2;
+        begin
+          if D2 = 0 then raise ESardError.Create('Division by zero');
+          Result.FloatValue := D1 / D2;
     end
     else if Op = '^' then Result.FloatValue := Power(D1, D2)
     else if Op = 'mod' then Result.FloatValue := Round(D1) mod Round(D2)
@@ -1580,19 +1588,19 @@ begin
   else if Op = '-' then Result.IntValue := I1 - I2
   else if Op = '*' then Result.IntValue := I1 * I2
   else if Op = '/' then
-  begin
-    if I2 = 0 then raise ESardError.Create('Division by zero');
-    Result.Kind := vkNumber;
-    Result.FloatValue := I1 / I2;
+      begin
+        if I2 = 0 then raise ESardError.Create('Division by zero');
+        Result.Kind := vkNumber;
+        Result.FloatValue := I1 / I2;
   end
   else if Op = '^' then
-  begin
-    Result.Kind := vkNumber;
-    Result.FloatValue := Power(I1, I2);
+      begin
+        Result.Kind := vkNumber;
+        Result.FloatValue := Power(I1, I2);
   end
   else if Op = 'mod' then Result.IntValue := I1 mod I2
   else raise ESardError.CreateFmt('Unsupported operator %s', [Op]);
-end;
+      end;
 
 function TInterpreter.ApplyUnary(const Op: string; Operand: TSardValue): TSardValue;
 begin
@@ -1841,6 +1849,13 @@ begin
   Result := TSardValue(Arr.ArrayItems[Index]);
 end;
 
+function IsImmutableKind(K: TValueKind): Boolean;
+begin
+  Result := (K = vkNull) or (K = vkInteger) or (K = vkNumber) or
+            (K = vkString) or (K = vkBoolean) or (K = vkColor) or
+            (K = vkCurrency) or (K = vkDate) or (K = vkLazy);
+end;
+
 procedure TInterpreter.SetArrayElement(Arr: TSardValue; Index: Integer; Value: TSardValue);
 var
   Old: TSardValue;
@@ -1852,9 +1867,17 @@ begin
     raise ESardError.CreateFmt('Array index out of bounds: %d', [Index]);
   Old := TSardValue(Arr.ArrayItems[Index]);
   if Old <> nil then Old.Release;
-  NewVal := Value.Clone(True);
-  NewVal.AddRef; { array owns it }
-  Arr.ArrayItems[Index] := NewVal;
+  if IsImmutableKind(Value.Kind) then
+  begin
+    Value.AddRef;
+    Arr.ArrayItems[Index] := Value;
+  end
+  else
+  begin
+    NewVal := Value.Clone(True);
+    NewVal.AddRef; { array owns it }
+    Arr.ArrayItems[Index] := NewVal;
+  end;
 end;
 
 function TInterpreter.CallUserCallable(Callable: TSardValue; Scope: TSardValue; CallBase: TSardValue; Args: array of TSardValue; Blocks: TASTNode): TSardValue;
@@ -1891,7 +1914,15 @@ begin
         for J := I to High(Args) do
         begin
           if Args[J] <> nil then
-            Arr.ArrayItems.Add(Args[J].Clone(True))
+          begin
+            if IsImmutableKind(Args[J].Kind) then
+            begin
+              Args[J].AddRef;
+              Arr.ArrayItems.Add(Args[J]);
+            end
+            else
+              Arr.ArrayItems.Add(Args[J].Clone(True));
+          end
           else
           begin
             V := NewValue;
@@ -1902,7 +1933,15 @@ begin
         ArgValue := Arr;
       end
       else if (I <= High(Args)) and (Args[I] <> nil) then
-        ArgValue := Args[I].Clone(True)
+      begin
+        if IsImmutableKind(Args[I].Kind) then
+        begin
+          Args[I].AddRef;
+          ArgValue := Args[I];
+        end
+        else
+          ArgValue := Args[I].Clone(True);
+      end
       else if (I <= High(Callable.ParamDefaults)) and (Callable.ParamDefaults[I] <> nil) then
         ArgValue := EvalExpression(Callable.ParamDefaults[I], Scope)
       else
@@ -2274,6 +2313,14 @@ begin
 
   if BodyBlock = nil then Exit;
 
+  { Pre-allocate index value to avoid per-iteration heap allocation }
+  IndexValue := nil;
+  if HaveVarName and CountKnown then
+  begin
+    IndexValue := InterpObj.NewValue;
+    IndexValue.Kind := vkInteger;
+  end;
+
   InterpObj.BreakDepth := InterpObj.BreakDepth + 1;
   LoopDepth := InterpObj.BreakDepth;
   try
@@ -2297,11 +2344,8 @@ begin
         NewScopeObj := InterpObj.NewScope(Scope);
         if HaveVarName then
         begin
-          IndexValue := InterpObj.NewValue;
-          IndexValue.Kind := vkInteger;
           IndexValue.IntValue := Iteration;
           NewScopeObj.SetMember(VarName, IndexValue);
-          IndexValue.Release;
         end;
         try
           ExecuteBody(NewScopeObj);
@@ -2312,6 +2356,7 @@ begin
       end;
     end;
   finally
+    if IndexValue <> nil then IndexValue.Release;
     if InterpObj.BreakDepth >= LoopDepth then
       InterpObj.BreakDepth := InterpObj.BreakDepth - 1;
   end;
@@ -2405,7 +2450,11 @@ begin
     begin
       for I := 0 to Container.ArrayItems.Count - 1 do
       begin
-        ElemValue := TSardValue(Container.ArrayItems[I]).Clone(True);
+        ElemValue := TSardValue(Container.ArrayItems[I]);
+        if IsImmutableKind(ElemValue.Kind) then
+          ElemValue.AddRef
+        else
+          ElemValue := ElemValue.Clone(True);
         try
           NewScopeObj := InterpObj.NewScope(Scope);
           NewScopeObj.SetMember(VarName, ElemValue);

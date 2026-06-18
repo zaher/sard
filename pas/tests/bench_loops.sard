@@ -1,0 +1,8 @@
+// Tight integer loop benchmark
+start = clock()
+sum = 0
+loop(1000000) {
+    sum += 1
+}
+elapsed = clock() - start
+print("loop 1M adds: ", sum, " in ", elapsed, "ms")

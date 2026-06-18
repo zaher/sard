@@ -1,0 +1,6 @@
+// Empty loop - measures loop infrastructure overhead
+start = clock()
+loop(1000000) {
+}
+elapsed = clock() - start
+print("empty loop 1M: ", elapsed, "ms")

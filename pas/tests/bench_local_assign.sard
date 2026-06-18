@@ -1,0 +1,7 @@
+// Assignment to local var in loop body scope - shorter chain
+start = clock()
+loop(1000000) {
+    local = 1
+}
+elapsed = clock() - start
+print("local assign 1M: ", elapsed, "ms")
