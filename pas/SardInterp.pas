@@ -845,13 +845,13 @@ end;
 function TInterpreter.EvalCall(Node: TASTNode; Scope: TSardValue): TSardValue;
 var
   Callee: TSardValue;
-  Args: array of TSardValue;
-  ArgNodes: array of TASTNode;
+  Args: TSardValueArray;
+  ArgNodes: TASTNodeArray;
   Blocks: TASTNode;
   I, J: Integer;
   ArgListNode: TASTNode;
-  ArgNodeArr: array of TASTNode;
-  BlockArr: array of TASTNode;
+  ArgNodeArr: TASTNodeArray;
+  BlockArr: TASTNodeArray;
   BlockCount: Integer;
   LazyCond: TSardValue;
   CallBase: TSardValue;

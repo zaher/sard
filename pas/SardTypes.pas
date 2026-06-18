@@ -55,6 +55,8 @@ type
 
   TSardValue = class;
 
+  TSardValueArray = array of TSardValue;
+
   { Built-in function handler signature used by optional libraries.
     Interp is passed as TObject to avoid a circular unit reference; the
     dispatcher in SardInterp passes the interpreter instance directly. }
@@ -93,7 +95,7 @@ type
     function IsLValue: Boolean;
     function DeepClone: TASTNode;
   end;
-
+  
   { Runtime Value Object }
   TSardValue = class
   private
