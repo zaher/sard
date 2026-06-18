@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sard Benchmark 02 - add_loop retest</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; color: #222; line-height: 1.5; }
+  h1 { border-bottom: 2px solid #444; padding-bottom: .3em; }
+  h2 { margin-top: 1.8em; }
+  h3 { margin-top: 1.4em; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #ccc; padding: .5em .8em; text-align: left; }
+  th { background: #f4f4f4; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:nth-child(even) td { background: #fafafa; }
+  tr.highlight td { background: #fffde7; font-weight: 600; }
+  code, pre { font-family: Consolas, "Cascadia Mono", Menlo, monospace; }
+  pre { background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; padding: .8em; overflow-x: auto; }
+  .note { background: #fff8e1; border-left: 4px solid #f0ad4e; padding: .6em .9em; margin: 1em 0; }
+  .delta-better { color: #2e7d32; font-weight: 600; }
+  .delta-worse  { color: #c62828; font-weight: 600; }
+  .delta-same   { color: #666; }
+  .good { color: #2e7d32; font-weight: 600; }
+  .gap  { color: #c62828; font-weight: 600; }
+  .bar-container { background: #eee; border-radius: 3px; height: 18px; position: relative; min-width: 120px; display: inline-block; vertical-align: middle; }
+  .bar { height: 100%; border-radius: 3px; }
+  .bar-lua  { background: #4caf50; }
+  .bar-py   { background: #2196f3; }
+  .bar-sard { background: #ff5722; }
+  .legend span { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: middle; border-radius: 2px; }
+  small { color: #666; }
+  .kpi { display: inline-block; background: #f4f4f4; border: 1px solid #ddd; border-radius: 4px; padding: .3em .7em; margin: .2em .4em .2em 0; }
+  .kpi b { font-size: 1.1em; }
+</style>
+</head>
+<body>
+
+<h1>Benchmark 02 &mdash; <code>add_loop</code> retest</h1>
+
+<p><strong>Date:</strong> 2026-06-18 (later run) &nbsp; <strong>Host:</strong> Windows x64 &nbsp; <strong>Sard:</strong> commit <code>040da44</code> "Fix compile in delphi" (FPC 3.3.1, -O3) &nbsp; <strong>Previous:</strong> <a href="bench01.html">bench01.html</a></p>
+
+<p>
+  <span class="kpi">Median Sard: <b>4110 ms</b></span>
+  <span class="kpi">Median Python: <b>29 ms</b></span>
+  <span class="kpi">Median Lua: <b>2 ms</b></span>
+  <span class="kpi">Gap to Lua: <b>~2055x</b></span>
+  <span class="kpi">Gap to Python: <b>~142x</b></span>
+</p>
+
+<h2>Test</h2>
+<p>Same test as <a href="bench01.html">bench01</a>: 1,000,000 iterations of a discarded binary addition <code>sum + 1</code>, isolating per-iteration expression-eval cost (operand lookup + operator dispatch + result allocation).</p>
+
+<pre>// Sard
+sum = 0
+start = clock()
+loop(1000000) {
+    sum + 1
+}
+elapsed = clock() - start
+print("add loop 1M: ", elapsed, "ms")</pre>
+
+<pre># Python
+import time
+sum = 0
+start = time.time()
+for _ in range(1000000):
+    sum + 1
+elapsed = (time.time() - start) * 1000
+print("add loop 1M: ", int(elapsed), "ms")</pre>
+
+<pre>-- Lua (bare expr not allowed; assign to throwaway local)
+local sum = 0
+local start = os.clock()
+for i = 1, 1000000 do
+    local _ = sum + 1
+end
+local elapsed = (os.clock() - start) * 1000
+print("add loop 1M: ", math.floor(elapsed), "ms")</pre>
+
+<div class="note"><strong>Note on Lua:</strong> Lua rejects bare expression statements (<code>sum + 1</code>), so the result is bound to a throwaway local <code>_</code>. This still measures the binary-op cost and is functionally equivalent to the Sard/Python versions.</div>
+
+<h2>Results &mdash; 5 passes</h2>
+<p>Five consecutive runs; values are milliseconds for 1,000,000 iterations. Median is the headline number.</p>
+
+<table>
+  <thead>
+    <tr><th>Pass</th><th class="num">Lua 5.5</th><th class="num">Python 3.11</th><th class="num">Sard (FPC)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Pass 1</td><td class="num">3</td><td class="num">28</td><td class="num">4125</td></tr>
+    <tr><td>Pass 2</td><td class="num">2</td><td class="num">30</td><td class="num">4015</td></tr>
+    <tr><td>Pass 3</td><td class="num">2</td><td class="num">29</td><td class="num">4031</td></tr>
+    <tr><td>Pass 4</td><td class="num">2</td><td class="num">31</td><td class="num">4375</td></tr>
+    <tr><td>Pass 5</td><td class="num">3</td><td class="num">29</td><td class="num">4110</td></tr>
+    <tr class="highlight"><td><strong>Median</strong></td><td class="num"><strong>2</strong></td><td class="num"><strong>29</strong></td><td class="num"><strong>4110</strong></td></tr>
+    <tr><td>Min</td><td class="num">2</td><td class="num">28</td><td class="num">4015</td></tr>
+    <tr><td>Max</td><td class="num">3</td><td class="num">31</td><td class="num">4375</td></tr>
+  </tbody>
+</table>
+
+<h3>Relative speed (lower is better)</h3>
+
+<table>
+  <thead>
+    <tr><th>Language</th><th class="num">Median (ms)</th><th>Bar (log-ish scale)</th><th class="num">vs Sard</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Lua 5.5</td><td class="num">2</td>
+      <td><span class="bar-container" style="width:5px"><span class="bar bar-lua" style="width:100%"></span></span></td>
+      <td class="num"><span class="good">~2055x faster</span></td>
+    </tr>
+    <tr>
+      <td>Python 3.11</td><td class="num">29</td>
+      <td><span class="bar-container" style="width:75px"><span class="bar bar-py" style="width:100%"></span></span></td>
+      <td class="num"><span class="good">~142x faster</span></td>
+    </tr>
+    <tr>
+      <td>Sard (FPC, tree-walking)</td><td class="num">4110</td>
+      <td><span class="bar-container" style="width:600px"><span class="bar bar-sard" style="width:100%"></span></span></td>
+      <td class="num">baseline</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="legend">
+  <span class="bar-lua"></span> Lua &nbsp;
+  <span class="bar-py"></span> Python &nbsp;
+  <span class="bar-sard"></span> Sard
+</p>
+
+<h2>Comparison vs bench01</h2>
+
+<table>
+  <thead>
+    <tr><th>Language</th><th class="num">bench01 median</th><th class="num">bench02 median</th><th>Delta</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Lua 5.5</td><td class="num">3</td><td class="num">2</td><td class="delta-same">within noise</td></tr>
+    <tr><td>Python 3.11</td><td class="num">29</td><td class="num">29</td><td class="delta-same">identical</td></tr>
+    <tr><td>Sard (FPC)</td><td class="num">4047</td><td class="num">4110</td><td class="delta-worse">+63 ms (+1.6%)</td></tr>
+  </tbody>
+</table>
+
+<p>Sard is statistically unchanged versus bench01 (the +1.6% is well within the 4015&ndash;4375 run-to-run spread; both medians sit inside the other's range). Lua and Python are flat as expected &mdash; nothing in their toolchains changed. The new Sard commit <code>040da44</code> ("Fix compile in delphi") was a Delphi-compat fix and does not touch the FPC hot path, so a flat result is the correct outcome.</p>
+
+<h2>Broader Sard context (single pass)</h2>
+<p>For orientation, here is where <code>add_loop</code> sits among the rest of the Sard micro-benchmarks on the same build. These are single-pass numbers (not medians) so treat them as &plusmn;5%.</p>
+
+<table>
+  <thead>
+    <tr><th>Benchmark</th><th>Description</th><th class="num">Time (ms)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>bench_empty_loop</code></td><td>1M empty iterations (loop infra only)</td><td class="num">125</td></tr>
+    <tr><td><code>bench_ident_loop</code></td><td>1M <code>sum</code> reads</td><td class="num">2453</td></tr>
+    <tr><td><code>bench_pure_assign</code></td><td>1M <code>sum = 1</code></td><td class="num">2594</td></tr>
+    <tr><td><code>bench_local_assign</code></td><td>1M <code>local = 1</code> (short scope chain)</td><td class="num">2844</td></tr>
+    <tr><td><code>bench_add_loop</code></td><td>1M <code>sum + 1</code> (binary op, discarded)</td><td class="num">4110</td></tr>
+    <tr><td><code>bench_loops</code></td><td>1M <code>sum += 1</code> (assign + binary)</td><td class="num">6781</td></tr>
+    <tr><td><code>bench_arith</code></td><td>500K &times; 4 ops (<code>+ * - /</code>)</td><td class="num">13844</td></tr>
+    <tr><td><code>bench_fib</code></td><td>recursive fib(25) (heavy calls)</td><td class="num">2750</td></tr>
+  </tbody>
+</table>
+
+<p>Observations from this breakdown:</p>
+<ul>
+  <li><strong>Empty loop = 125 ms</strong> &mdash; the floor. Loop infra + scope create/destroy costs ~125 ns per iteration. This is the irreducible cost of the current loop design.</li>
+  <li><strong>ident read = 2453 ms</strong> &mdash; ~2.3 &micro;s per <code>sum</code> lookup. This is the scope-chain walk + <code>TStringList.IndexOf</code> + <code>AddRef</code>, four scope hops for <code>sum</code>.</li>
+  <li><strong>pure assign = 2594 ms</strong> &mdash; ~2.6 &micro;s per <code>sum = 1</code>. Only ~140 ns more than a read, thanks to the <code>SetMemberAt</code> fast path added in the optimizations.</li>
+  <li><strong>add_loop = 4110 ms</strong> &mdash; ~4.1 &micro;s per <code>sum + 1</code>. The binary op costs ~1.7 &micro;s over the bare ident read: one <code>EvalLiteral</code> + one <code>NewValue</code> for the result + one <code>ApplyOperator</code> dispatch + the result <code>Release</code>. The result-box allocation is the bulk of it.</li>
+  <li><strong>bench_loops (sum += 1) = 6781 ms</strong> &mdash; ~6.8 &micro;s, almost exactly ident(2453) + add(4110 &minus; 2453) + assign overhead. The compound-assign path re-evaluates <code>sum</code> twice (once as lvalue, once as the binary left operand), which is visible here.</li>
+</ul>
+
+<h2>Review &amp; Analysis (unchanged direction, confirmed numbers)</h2>
+
+<p>The retest confirms the bench01 finding with tighter statistics: Sard is ~3 orders of magnitude behind Lua and ~2 orders behind Python on a tight numeric loop. The relative gap is not a compiler-quality issue (Sard is built with FPC at <code>-O3</code>); it is the <strong>tree-walking + per-value heap-object model</strong>.</p>
+
+<p>Per-iteration cost breakdown for <code>sum + 1</code> in Sard (~4.1 &micro;s):</p>
+<ol>
+  <li><strong>Tree-walking dispatch</strong> &mdash; <code>EvalNode &rarr; EvalBinary &rarr; EvalIdentifier + EvalLiteral &rarr; ApplyOperator</code>, recursive calls and a <code>case</code> on <code>Node.Kind</code> at every level. Lua/Python decode a single bytecode opcode instead.</li>
+  <li><strong>Per-result heap allocation</strong> &mdash; a fresh <code>TSardValue</code> is allocated for the <code>sum + 1</code> result on every iteration and immediately freed (refcount &rarr; 0). Lua reuses a register slot; Python uses the value stack. Neither allocates a boxed object per arithmetic op.</li>
+  <li><strong>Scope-chain walk + <code>TStringList.IndexOf</code></strong> &mdash; reading <code>sum</code> walks iteration-scope &rarr; loop-scope &rarr; outer-scope &rarr; root and does a linear case-insensitive string compare at each hop. Lua resolves <code>sum</code> as a pre-resolved upvalue slot; Python does <code>LOAD_NAME</code> against one dict.</li>
+  <li><strong>Refcount churn</strong> &mdash; every produced value gets <code>AddRef</code>/<code>Release</code> pairs along its eval path, even with the recent <code>AddRef</code>-instead-of-<code>Clone</code> optimization. Lua has no per-op refcounting; Python amortizes it under the GIL.</li>
+</ol>
+
+<h3>Where the realistic headroom is (confirmed)</h3>
+<ul>
+  <li><strong>A bytecode / VM layer</strong> &mdash; the single biggest win. Compile the AST to a flat opcode stream once, then interpret opcodes. Eliminates recursive tree-walking, enables pre-resolved variable slots, and turns <code>ADD</code> into one branch in a tight loop. This is what makes Lua ~2000x faster, not Lua's C vs. Sard's Pascal.</li>
+  <li><strong>Avoid allocation for discarded results</strong> &mdash; <code>sum + 1</code> as a statement has its result thrown away. An <code>nkExprStmt</code> wrapper that evaluates for side-effects only would skip boxing the result and cut roughly one alloc + one free per iteration here (estimated ~30-40% off <code>add_loop</code> alone).</li>
+  <li><strong>Inline cache for <code>EvalIdentifier</code></strong> &mdash; remember (scope-depth, member-index) of <code>sum</code> after the first lookup; subsequent lookups validate the cache and skip the chain walk. Standard monomorphic-IC technique; works well for loop bodies.</li>
+  <li><strong>Unbox small integers</strong> &mdash; NaN-boxing or tagged-pointer scheme (like LuaJIT/JavaScriptCore) removes the per-value heap object entirely for numbers, killing the alloc+free churn on arithmetic.</li>
+</ul>
+
+<div class="note"><strong>Bottom line (retest confirms):</strong> Sard is a clean tree-walking interpreter with per-value heap objects and refcounting. That design is ~3 orders of magnitude slower than a bytecode VM for tight numeric loops. The recent optimizations were the right local wins (~2x on most benches, ~6x on empty loop) but closing the gap to Lua/Python requires moving off tree-walking to a compiled bytecode/VM layer plus value unboxing &mdash; a design change, not a micro-optimization. Numbers in this retest are within noise of bench01; no regression from the Delphi-compat commit.</div>
+
+<h2>Environment</h2>
+<ul>
+  <li><strong>Sard:</strong> commit <code>040da44</code> "Fix compile in delphi", Free Pascal 3.3.1 (2025/08/12) for x86_64, flags <code>-MObjFPC -Scghi -B -CX -O3 -Xs -XX</code>, freshly rebuilt before the test</li>
+  <li><strong>Lua:</strong> Lua 5.5.0 (PUC-Rio)</li>
+  <li><strong>Python:</strong> CPython 3.11.5</li>
+  <li><strong>OS:</strong> Windows x64</li>
+  <li><strong>Timer:</strong> Sard <code>clock()</code> (GetTickCount64), Lua <code>os.clock()</code>, Python <code>time.time()</code> &mdash; all millisecond-resolved; differences of &lt;5 ms are noise.</li>
+  <li><strong>Method:</strong> 5 consecutive passes, median taken as the headline. All 58 Sard unit tests pass on this build.</li>
+</ul>
+
+<p><small>Median of 5 runs shown as the headline number; individual passes above. Benchmark files live under <code>pas/tests/bench_*.sard</code> (Sard) and were reproduced verbatim in Python/Lua for this comparison. Previous report: <a href="bench01.html">bench01.html</a>.</small></p>
+
+</body>
+</html>

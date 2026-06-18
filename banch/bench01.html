@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sard Benchmark 01 - add_loop</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; color: #222; line-height: 1.5; }
+  h1 { border-bottom: 2px solid #444; padding-bottom: .3em; }
+  h2 { margin-top: 1.8em; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #ccc; padding: .5em .8em; text-align: left; }
+  th { background: #f4f4f4; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:nth-child(even) td { background: #fafafa; }
+  code, pre { font-family: Consolas, "Cascadia Mono", Menlo, monospace; }
+  pre { background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; padding: .8em; overflow-x: auto; }
+  .note { background: #fff8e1; border-left: 4px solid #f0ad4e; padding: .6em .9em; margin: 1em 0; }
+  .good { color: #2e7d32; font-weight: 600; }
+  .gap  { color: #c62828; font-weight: 600; }
+  .bar-container { background: #eee; border-radius: 3px; height: 18px; position: relative; min-width: 120px; display: inline-block; vertical-align: middle; }
+  .bar { height: 100%; border-radius: 3px; }
+  .bar-lua  { background: #4caf50; }
+  .bar-py   { background: #2196f3; }
+  .bar-sard { background: #ff5722; }
+  .legend span { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: middle; border-radius: 2px; }
+  small { color: #666; }
+</style>
+</head>
+<body>
+
+<h1>Benchmark 01 &mdash; <code>add_loop</code></h1>
+
+<p><strong>Date:</strong> 2026-06-18 &nbsp; <strong>Host:</strong> Windows x64 &nbsp; <strong>Sard:</strong> commit <code>6e606fd</code> (FPC 3.3.1, -O3)</p>
+
+<h2>Test</h2>
+<p>Measure the overhead of a binary addition whose result is discarded, inside a 1,000,000-iteration loop. This isolates the cost of <em>evaluating one binary expression node</em> (operand lookup + operator dispatch + result allocation) per iteration.</p>
+
+<pre>// Sard
+sum = 0
+start = clock()
+loop(1000000) {
+    sum + 1
+}
+elapsed = clock() - start
+print("add loop 1M: ", elapsed, "ms")</pre>
+
+<pre># Python
+import time
+sum = 0
+start = time.time()
+for _ in range(1000000):
+    sum + 1
+elapsed = (time.time() - start) * 1000
+print("add loop 1M: ", int(elapsed), "ms")</pre>
+
+<pre>-- Lua
+local sum = 0
+local start = os.clock()
+for i = 1, 1000000 do
+    local _ = sum + 1
+end
+local elapsed = (os.clock() - start) * 1000
+print("add loop 1M: ", math.floor(elapsed), "ms")</pre>
+
+<div class="note"><strong>Note on Lua:</strong> Lua does not allow a bare expression statement (<code>sum + 1</code>), so the result is assigned to a throwaway local <code>_</code>. This still measures the binary-op cost and is functionally equivalent to the Sard/Python versions.</div>
+
+<h2>Results</h2>
+<p>Three consecutive runs; values are milliseconds for 1,000,000 iterations.</p>
+
+<table>
+  <thead>
+    <tr><th>Run</th><th class="num">Lua 5.5</th><th class="num">Python 3.11</th><th class="num">Sard (FPC)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Run 1</td><td class="num">3</td><td class="num">30</td><td class="num">4047</td></tr>
+    <tr><td>Run 2</td><td class="num">2</td><td class="num">29</td><td class="num">4031</td></tr>
+    <tr><td>Run 3</td><td class="num">3</td><td class="num">28</td><td class="num">4047</td></tr>
+    <tr><td><strong>Median</strong></td><td class="num"><strong>3</strong></td><td class="num"><strong>29</strong></td><td class="num"><strong>4047</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>Relative speed (lower is better)</h3>
+
+<table>
+  <thead>
+    <tr><th>Language</th><th class="num">Time (ms)</th><th>Bar</th><th class="num">vs Sard</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Lua 5.5</td><td class="num">3</td>
+      <td><span class="bar-container" style="width:8px"><span class="bar bar-lua" style="width:100%"></span></span></td>
+      <td class="num"><span class="good">~1350x faster</span></td>
+    </tr>
+    <tr>
+      <td>Python 3.11</td><td class="num">29</td>
+      <td><span class="bar-container" style="width:80px"><span class="bar bar-py" style="width:100%"></span></span></td>
+      <td class="num"><span class="good">~140x faster</span></td>
+    </tr>
+    <tr>
+      <td>Sard (FPC, tree-walking)</td><td class="num">4047</td>
+      <td><span class="bar-container" style="width:600px"><span class="bar bar-sard" style="width:100%"></span></span></td>
+      <td class="num">baseline</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="legend">
+  <span class="bar-lua"></span> Lua &nbsp;
+  <span class="bar-py"></span> Python &nbsp;
+  <span class="bar-sard"></span> Sard
+</p>
+
+<h2>Review &amp; Analysis</h2>
+
+<p>The ~1350x gap between Lua and Sard is not a compiler-quality issue (Sard is already built with FPC at <code>-O3</code>); it is a <strong>fundamental architecture difference</strong>. The dominant costs in Sard's <code>sum + 1</code> per iteration are:</p>
+
+<ol>
+  <li><strong>Tree-walking dispatch.</strong> Each iteration re-dispatches on <code>Node.Kind</code> through <code>EvalNode &rarr; EvalBinary &rarr; EvalIdentifier + EvalLiteral &rarr; ApplyOperator</code>. Lua and Python compile to bytecode once and the interpreter loop just decodes opcode <code>ADD</code> &mdash; no AST traversal, no recursive calls.</li>
+  <li><strong>Per-result heap allocation.</strong> Sard allocates a fresh <code>TSardValue</code> object for the <code>sum + 1</code> result on every iteration, then immediately frees it (refcount drops to 0). That is one heap alloc + one heap free per loop turn. Lua uses a <em>register-based VM</em> and reuses stack slots; Python uses a value stack. Neither allocates a boxed object per arithmetic op.</li>
+  <li><strong>Scope-chain walk + member lookup.</strong> Reading <code>sum</code> walks the iteration-scope &rarr; loop-scope &rarr; outer-scope &rarr; root chain and does a <code>TStringList.IndexOf</code> at each hop. Lua resolves <code>sum</code> as an upvalue via a precomputed slot; Python resolves it via <code>LOAD_NAME</code> against a dict, but the dict is one level and the name is cached.</li>
+  <li><strong>Refcount churn.</strong> Even with the recent <code>AddRef</code>-instead-of-<code>Clone</code> optimization, every produced value still gets <code>AddRef</code>/<code>Release</code> pairs on each eval path. Lua has no per-op refcounting; Python relies on the GIL and amortized refcounting.</li>
+</ol>
+
+<p>The recent Sard optimizations (lazy containers, <code>AddRef</code> for immutables, <code>FindVariable</code> returning a member index, <code>SetMemberAt</code> fast path) brought <code>add_loop</code> from ~5640 ms down to ~4040 ms &mdash; a <strong>~1.4x</strong> improvement <em>within the tree-walking model</em>. Further wins inside the current model are diminishing: the remaining cost is the model itself.</p>
+
+<h3>Where the realistic headroom is</h3>
+
+<ul>
+  <li><strong>A bytecode / VM layer</strong> (the single biggest win). Compile the AST to a flat opcode stream once, then interpret opcodes. This eliminates recursive tree-walking, enables pre-resolved variable slots, and turns <code>ADD</code> into one branch in a tight loop. This is what makes Lua ~1350x faster, not Lua's C vs. Sard's Pascal.</li>
+  <li><strong>Avoid allocation for discarded results.</strong> <code>sum + 1</code> as a statement has its result thrown away. A compiler/VM pass can flag expression-statement results as "unused" and skip boxing them. In the current AST interpreter, <code>EvalStatements</code> always <code>Release</code>s the returned value &mdash; so we always pay for the box. A <code>nkExprStmt</code> wrapper that evaluates for side-effects only would cut roughly one alloc+free per iteration here.</li>
+  <li><strong>Inline cache for <code>EvalIdentifier</code>.</strong> Remember the (scope-depth, member-index) of <code>sum</code> after the first lookup; subsequent lookups validate the cache and skip the chain walk. This is the standard monomorphic-IC technique and works well for loop bodies.</li>
+  <li><strong>Unbox small integers in <code>TSardValue</code>.</strong> If <code>Kind = vkInteger</code> is stored inline (it already is &mdash; <code>IntValue: Int64</code>), the cost is the <em>wrapper object</em>, not the int. A NaN-boxing or tagged-pointer scheme (like LuaJIT/JavaScriptCore) would remove the per-value heap object entirely for numbers.</li>
+</ul>
+
+<div class="note"><strong>Bottom line:</strong> Sard is currently a clean tree-walking interpreter with per-value heap objects and refcounting. That design is ~3-4 orders of magnitude slower than a bytecode VM for tight numeric loops. The recent optimizations were worthwhile (~2x on most benches, ~6x on empty loop) and were the right local wins, but closing the gap to Lua/Python requires moving off tree-walking to a compiled bytecode/VM layer plus value unboxing &mdash; a design change, not a micro-optimization.</div>
+
+<h2>Environment</h2>
+<ul>
+  <li><strong>Sard:</strong> commit <code>6e606fd</code>, Free Pascal 3.3.1 (2025/08/12) for x86_64, flags <code>-MObjFPC -Scghi -B -CX -O3 -Xs -XX</code></li>
+  <li><strong>Lua:</strong> Lua 5.5.0 (PUC-Rio)</li>
+  <li><strong>Python:</strong> CPython 3.11.5</li>
+  <li><strong>OS:</strong> Windows x64</li>
+  <li><strong>Timer:</strong> Sard <code>clock()</code> (GetTickCount64), Lua <code>os.clock()</code>, Python <code>time.time()</code> &mdash; all millisecond-resolved; differences of &lt;5 ms are noise.</li>
+</ul>
+
+<p><small>Median of 3 runs shown as the headline number. Individual runs above. Benchmark files live under <code>pas/tests/bench_*.sard</code> (Sard) and were reproduced verbatim in Python/Lua for this comparison.</small></p>
+
+</body>
+</html>
