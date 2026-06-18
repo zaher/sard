@@ -2,6 +2,13 @@
 
 > A prototype-based, expression-oriented scripting language with gradual typing, financial calculations, and modern conveniences.
 
+## Goal
+
+I created Sard to teach my kids how to code. In the 8-bit era, BASIC on machines like the C64, ZX Spectrum, and MSX wasn't just a language—it was a complete platform. You had instant access to a Console, a Canvas, and Sound.
+Today, no modern language offers this all-in-one experience. Retro alternatives merely emulate old hardware limitations, while modern languages require complex setups just to draw a pixel. Worse, beginners constantly trip over syntax friction: case sensitivity, strict whitespace, confusing comparisons (==), and missing semicolons.
+Sard bridges the gap: the instant, multimedia-rich fun of classic BASIC, combined with a forgiving, modern syntax designed for beginners.
+
+
 ## Overview
 
 Sard is a small but expressive scripting language designed for clarity, flexibility, and precision.
