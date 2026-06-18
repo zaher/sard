@@ -23,8 +23,8 @@
       <BuildNr Value="13"/>
     </VersionInfo>
     <BuildModes>
-      <Item Name="Debug"/>
-      <Item Name="Release" Default="True">
+      <Item Name="Debug" Default="True"/>
+      <Item Name="Release">
         <CompilerOptions>
           <Version Value="11"/>
           <PathDelim Value="\"/>

@@ -170,7 +170,6 @@ type
     destructor Destroy; override;
     procedure AddRef;
     procedure Release;
-    procedure Free; reintroduce;
     procedure SetParent(P: TSardValue);
     function Clone(Deep: Boolean = True): TSardValue;
     procedure SetMember(const Name: string; Value: TSardValue);
@@ -568,14 +567,9 @@ end;
 procedure TSardValue.Release;
 begin
   Dec(RefCount);
+  if IsSingleton then Exit;
   if RefCount <= 0 then
     Free;
-end;
-
-procedure TSardValue.Free;
-begin
-  if IsSingleton then Exit;
-  inherited Free;
 end;
 
 procedure TSardValue.SetParent(P: TSardValue);
