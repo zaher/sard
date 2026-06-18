@@ -13,8 +13,6 @@ uses
   {$endif}
   SardTypes;
 
-function IsImmutableKind(K: TValueKind): Boolean; inline;
-
 type
   TInterpreter = class
   private
@@ -79,6 +77,8 @@ type
     property ExitValue: TSardValue read FExitValue write FExitValue;
     property HasExit: Boolean read FHasExit write FHasExit;
   end;
+
+function IsImmutableKind(K: TValueKind): Boolean; //inline;
 
 implementation
 
@@ -832,6 +832,8 @@ var
 begin
   Result := nil;
   BlockCount := 0;
+  BlockArr := nil;
+  ArgNodeArr := nil;
   SetLength(BlockArr, Node.ChildCount);
   SetLength(ArgNodeArr, 0);
   try
@@ -1815,7 +1817,7 @@ begin
   Result := TSardValue(Arr.ArrayItems[Index]);
 end;
 
-function IsImmutableKind(K: TValueKind): Boolean;
+function IsImmutableKind(K: TValueKind): Boolean; inline;
 begin
   Result := (K = vkNull) or (K = vkInteger) or (K = vkNumber) or
             (K = vkString) or (K = vkBoolean) or (K = vkColor) or
@@ -1980,9 +1982,7 @@ function BuiltInPrint(Interp: TObject; Scope: TSardValue; Args: array of TSardVa
 var
   I: Integer;
   S: string;
-  InterpObj: TInterpreter;
 begin
-  InterpObj := TInterpreter(Interp);
   S := '';
   for I := 0 to High(Args) do
   begin

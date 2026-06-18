@@ -199,9 +199,9 @@ function BoolToStr(B: boolean; const TrueStr, FalseStr: string): string;
 
 { Shared immutable singletons. These are never freed. }
 var
-  ValueTrue: TSardValue;
-  ValueFalse: TSardValue;
-  ValueNone: TSardValue;
+  ValueTrue: TSardValue = nil;
+  ValueFalse: TSardValue = nil;
+  ValueNone: TSardValue = nil;
 
 function BooleanValue(V: Boolean): TSardValue;
 function NullValue: TSardValue;
@@ -411,7 +411,7 @@ begin
     C := Key[I];
     if (C >= 'A') and (C <= 'Z') then
       C := Char(Ord(C) + 32);
-    Result := ((Result shl 5) + Result) xor Ord(C);
+    Result := LongWord((UInt64(Result) * 33) xor UInt64(Ord(C)));
   end;
 end;
 
@@ -859,4 +859,8 @@ initialization
   ValueNone.Kind := vkNull;
   ValueNone.IsSingleton := True;
 
+finalization
+  FreeAndNil(ValueTrue);
+  FreeAndNil(ValueFalse);
+  FreeAndNil(ValueNone);
 end.

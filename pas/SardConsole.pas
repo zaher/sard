@@ -21,6 +21,7 @@ var
   Parser: TParser;
   AST: TASTNode;
   Interp: TInterpreter;
+  MathLib: TMathLibrary;
   SL: TStringList;
 begin
   if ParamCount < 1 then
@@ -47,7 +48,12 @@ begin
       try
         Interp := TInterpreter.Create;
         try
-          TMathLibrary.Create.RegisterIn(Interp);
+          MathLib := TMathLibrary.Create;
+          try
+            MathLib.RegisterIn(Interp);
+          finally
+            MathLib.Free;
+          end;
           Interp.Execute(AST);
         finally
           Interp.Free;
