@@ -20,7 +20,7 @@
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
       <RevisionNr Value="3"/>
-      <BuildNr Value="43"/>
+      <BuildNr Value="45"/>
     </VersionInfo>
     <BuildModes>
       <Item Name="Debug" Default="True"/>

@@ -1,7 +1,7 @@
 unit SardMath;
 
 {$ifdef FPC}
-{$mode objfpc}{$H+}
+{$mode delphi}{$H+}
 {$endif}
 
 { Optional math library for Sard.

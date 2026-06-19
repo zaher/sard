@@ -1,7 +1,7 @@
 unit SardTypes;
 
 {$ifdef FPC}
-{$mode objfpc}{$H+}
+{$mode delphi}{$H+}
 {$endif}
 
 interface
@@ -57,13 +57,8 @@ type
 
   TSardValue = class;
 
-  {$ifdef FPC}
-  TSardValueDict = specialize TDictionary<string, TSardValue>;
-  TSardValuePair = specialize TPair<string, TSardValue>;
-  {$else}
   TSardValueDict = TDictionary<string, TSardValue>;
   TSardValuePair = TPair<string, TSardValue>;
-  {$endif}
 
   TSardValueArray = array of TSardValue;
 

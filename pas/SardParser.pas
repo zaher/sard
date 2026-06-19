@@ -1,7 +1,7 @@
 unit SardParser;
 
 {$ifdef FPC}
-{$mode objfpc}{$H+}
+{$mode delphi}{$H+}
 {$endif}
 
 interface
