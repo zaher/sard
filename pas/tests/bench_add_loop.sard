@@ -5,4 +5,4 @@ loop(1000000) {
     sum + 1
 }
 elapsed = clock() - start
-print("add loop 1M: ", elapsed, "ms")
+print("add loop 1M: ", elapsed, "ms", " sum=", sum)

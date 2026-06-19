@@ -23,7 +23,7 @@ type
     FExitValue: TSardValue;
     FHasExit: Boolean;
     FNoAutoCall: Boolean;
-    function FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue; out MemberIndex: Integer): TSardValue;
+    function FindVariable(Scope: TSardValue; const Name: string; out Owner: TSardValue; out MemberIndex: Integer): TSardValue; inline;
     function EvalNode(Node: TASTNode; Scope: TSardValue): TSardValue;
     function EvalLiteral(Node: TASTNode): TSardValue;
     function EvalIdentifier(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -63,11 +63,11 @@ type
     { Shared services exposed to libraries ----------------------------------- }
     function NewValue: TSardValue;
     function NewScope(Parent: TSardValue): TSardValue;
-    function EvalExpression(Node: TASTNode; Scope: TSardValue): TSardValue;
+    function EvalExpression(Node: TASTNode; Scope: TSardValue): TSardValue; inline;
     function EvalStatements(Node: TASTNode; Scope: TSardValue): TSardValue;
     function ExecuteBlock(Body: TASTNode; Scope: TSardValue): TSardValue;
     function CoerceValue(Value: TSardValue; const TargetType: string): TSardValue;
-    function IsTruthy(Value: TSardValue): Boolean;
+    function IsTruthy(Value: TSardValue): Boolean; inline;
 
     { Execution state exposed to control-flow builtins ----------------------- }
     property BreakDepth: Integer read FBreakDepth write FBreakDepth;
@@ -77,7 +77,7 @@ type
     property HasExit: Boolean read FHasExit write FHasExit;
   end;
 
-function IsImmutableKind(K: TValueKind): Boolean; //inline;
+function IsImmutableKind(K: TValueKind): Boolean; inline;
 
 implementation
 
@@ -131,8 +131,10 @@ end;
 destructor TInterpreter.Destroy;
 begin
   FRoot.Release;
-  if FReturnValue <> nil then FReturnValue.Release;
-  if FExitValue <> nil then FExitValue.Release;
+  if FReturnValue <> nil then
+    FReturnValue.Release;
+  if FExitValue <> nil then
+    FExitValue.Release;
   inherited;
 end;
 
@@ -175,11 +177,13 @@ procedure TInterpreter.Execute(Node: TASTNode);
 var
   Ret: TSardValue;
 begin
-  if FExitValue <> nil then FExitValue.Release;
+  if FExitValue <> nil then
+    FExitValue.Release;
   FExitValue := nil;
   FHasExit := False;
   Ret := EvalStatements(Node, FRoot);
-  if Ret <> nil then Ret.Release;
+  if Ret <> nil then
+    Ret.Release;
 end;
 
 procedure TInterpreter.RegisterBuiltin(const Name: string; Handler: TBuiltinHandler);
@@ -220,7 +224,8 @@ begin
     Result := EvalStatements(Body, NewScopeObj);
   finally
     NewScopeObj.Release;
-    if FReturnValue <> nil then FReturnValue.Release;
+    if FReturnValue <> nil then
+      FReturnValue.Release;
     FReturnValue := SavedReturn;
     FHasReturn := SavedHasReturn;
   end;
@@ -242,7 +247,8 @@ begin
   StartBreakDepth := FBreakDepth;
   for I := 0 to Node.ChildCount - 1 do
   begin
-    if Result <> nil then Result.Release;
+    if Result <> nil then
+      Result.Release;
     Result := EvalNode(Node.Children[I], Scope);
     { Implicit call: a bare identifier statement that resolves to a callable
       object is invoked with no arguments (Grammar.md §4.7). }
@@ -293,7 +299,8 @@ begin
           Result := EvalStatements(Node, BlockScope);
         finally
           BlockScope.Release;
-          if FReturnValue <> nil then FReturnValue.Release;
+          if FReturnValue <> nil then
+            FReturnValue.Release;
           FReturnValue := SavedReturn;
           FHasReturn := SavedHasReturn;
         end;
@@ -322,42 +329,45 @@ end;
 
 function TInterpreter.EvalLiteral(Node: TASTNode): TSardValue;
 begin
-  Result := NewValue;
   if Node.IsNone then
-  begin
-    Result.Kind := vkNull;
-    Exit;
-  end;
+    Exit(NullValue);
   if Node.CurrencyValue <> 0 then
   begin
+    Result := NewValue;
     Result.Kind := vkCurrency;
     Result.CurrencyValue := Node.CurrencyValue;
-  end
-  else if Node.ColorValue <> 0 then
+    Exit;
+  end;
+  if Node.ColorValue <> 0 then
   begin
+    Result := NewValue;
     Result.Kind := vkColor;
     Result.ColorValue := Node.ColorValue;
-  end
-  else if Node.StrValue <> '' then
+    Exit;
+  end;
+  if Node.StrValue <> '' then
   begin
+    Result := NewValue;
     Result.Kind := vkString;
     Result.StrValue := Node.StrValue;
-  end
-  else if Node.IsDate then
+    Exit;
+  end;
+  if Node.IsDate then
   begin
+    Result := NewValue;
     Result.Kind := vkDate;
     Result.FloatValue := Node.FloatValue;
-  end
-  else if Abs(Node.FloatValue) > 1e-15 then
+    Exit;
+  end;
+  if Abs(Node.FloatValue) > 1e-15 then
   begin
+    Result := NewValue;
     Result.Kind := vkNumber;
     Result.FloatValue := Node.FloatValue;
-  end
-  else
-  begin
-    Result.Kind := vkInteger;
-    Result.IntValue := Node.IntValue;
+    Exit;
   end;
+  { Integer literal: use the small-int cache when in range (no heap alloc). }
+  Result := IntegerValue(Node.IntValue);
 end;
 
 function TInterpreter.EvalIdentifier(Node: TASTNode; Scope: TSardValue): TSardValue;
@@ -505,36 +515,32 @@ begin
       Target := GetArrayElement(Arr, Index);
       OldInt := Target.IntValue;
       if Node.Op = '++' then NewInt := OldInt + 1 else NewInt := OldInt - 1;
-      NewVal := NewValue;
-      NewVal.Kind := vkInteger;
-      NewVal.IntValue := NewInt;
+      NewVal := IntegerValue(NewInt);
       SetArrayElement(Arr, Index, NewVal);
+      Result := NewVal;
+      Result.AddRef;
       NewVal.Release;
-      Result := NewValue;
-      Result.Kind := vkInteger;
-      Result.IntValue := NewInt;
     end
     else
     begin
-      if Owner = nil then
-      begin
-        { auto-create variable with 0 in current scope }
-        Target := NewValue;
-        Target.Kind := vkInteger;
-        Target.IntValue := 0;
-        Scope.SetMember(Name, Target);
-        Target.Release;
-        Existing := Target;
-      end;
-      Target := Existing;
-      if Target = nil then
-        raise ESardError.CreateFmt('Internal error: lvalue not found: %s', [Name]);
-      OldInt := Target.IntValue;
+      { Non-mutating: replace the stored value rather than writing in place.
+        This is required because the stored value may be a shared singleton
+        (small-int cache / true/false/none) which must never be mutated. }
+      if Existing = nil then
+        OldInt := 0
+      else
+        OldInt := Existing.IntValue;
       if Node.Op = '++' then NewInt := OldInt + 1 else NewInt := OldInt - 1;
-      Target.IntValue := NewInt;
-      Result := NewValue;
-      Result.Kind := vkInteger;
-      Result.IntValue := NewInt;
+      NewVal := IntegerValue(NewInt);
+      if MemberIndex >= 0 then
+        Owner.SetMemberAt(MemberIndex, NewVal)
+      else if Owner = nil then
+        Scope.SetMember(Name, NewVal)
+      else
+        Owner.SetMember(Name, NewVal);
+      Result := NewVal;
+      Result.AddRef;
+      NewVal.Release;
     end;
   finally
     if OwnerOwned then Owner.Release;
@@ -551,6 +557,7 @@ var
   Existing: TSardValue;
   MemberIndex: Integer;
   Target: TSardValue;
+  NewVal: TSardValue;
   OldInt: Int64;
   NewInt: Int64;
   Arr: TSardValue;
@@ -584,32 +591,28 @@ begin
       Target := GetArrayElement(Arr, Index);
       OldInt := Target.IntValue;
       if Node.Op = '++' then NewInt := OldInt + 1 else NewInt := OldInt - 1;
-      Target.IntValue := NewInt;
-      Result := NewValue;
-      Result.Kind := vkInteger;
-      Result.IntValue := OldInt;
+      NewVal := IntegerValue(NewInt);
+      SetArrayElement(Arr, Index, NewVal);
+      NewVal.Release;
+      Result := IntegerValue(OldInt);
     end
     else
     begin
-      if Owner = nil then
-      begin
-        { auto-create variable with 0 in current scope }
-        Target := NewValue;
-        Target.Kind := vkInteger;
-        Target.IntValue := 0;
-        Scope.SetMember(Name, Target);
-        Target.Release;
-        Existing := Target;
-      end;
-      Target := Existing;
-      if Target = nil then
-        raise ESardError.CreateFmt('Internal error: lvalue not found: %s', [Name]);
-      OldInt := Target.IntValue;
+      { Non-mutating replacement (see EvalPrefixIncDec). }
+      if Existing = nil then
+        OldInt := 0
+      else
+        OldInt := Existing.IntValue;
       if Node.Op = '++' then NewInt := OldInt + 1 else NewInt := OldInt - 1;
-      Target.IntValue := NewInt;
-      Result := NewValue;
-      Result.Kind := vkInteger;
-      Result.IntValue := OldInt;
+      NewVal := IntegerValue(NewInt);
+      if MemberIndex >= 0 then
+        Owner.SetMemberAt(MemberIndex, NewVal)
+      else if Owner = nil then
+        Scope.SetMember(Name, NewVal)
+      else
+        Owner.SetMember(Name, NewVal);
+      NewVal.Release;
+      Result := IntegerValue(OldInt);
     end;
   finally
     if OwnerOwned then Owner.Release;
@@ -832,10 +835,11 @@ begin
   BlockCount := 0;
   BlockArr := nil;
   ArgNodeArr := nil;
-  SetLength(BlockArr, Node.ChildCount);
   SetLength(ArgNodeArr, 0);
   try
-    { Separate argument lists and blocks from children }
+    { Separate argument lists and blocks from children.
+      BlockArr is allocated lazily: the common call f(args) has no blocks,
+      so we avoid a per-call dynamic array allocation. }
     for I := 0 to Node.ChildCount - 1 do
     begin
       if Node.Children[I].Name = 'args' then
@@ -847,6 +851,8 @@ begin
       end
       else
       begin
+        if BlockCount = 0 then
+          SetLength(BlockArr, Node.ChildCount);
         BlockArr[BlockCount] := Node.Children[I];
         Inc(BlockCount);
       end;
@@ -905,17 +911,15 @@ begin
         if IsBuiltinCallable(Callee) then
           for I := 0 to High(Args) do
             if Args[I] = nil then
-            begin
-              Args[I] := NewValue;
-              Args[I].Kind := vkNull;
-            end;
+              Args[I] := NullValue;
 
         if IsBuiltinCallable(Callee) then
           Result := Callee.BuiltinHandler(Self, Scope, Args, Blocks)
         else
           Result := CallUserCallable(Callee, Scope, CallBase, Args, Blocks);
       finally
-        if CallBase <> nil then CallBase.Release;
+        if CallBase <> nil then
+          CallBase.Release;
       end;
     finally
       Callee.Release;
@@ -1053,14 +1057,17 @@ begin
       Result.AddRef;
     end;
   finally
-    if OwnerOwned then Owner.Release;
-    if Value <> nil then Value.Release;
+    if OwnerOwned then
+      Owner.Release;
+    if Value <> nil then
+      Value.Release;
   end;
 end;
 
 function TInterpreter.EvalDeclare(Node: TASTNode; Scope: TSardValue): TSardValue;
 var
   Value, Callable: TSardValue;
+  Cloned: TSardValue;
   I: Integer;
   BodyNode: TASTNode;
   ExecScope: TSardValue;
@@ -1116,7 +1123,8 @@ begin
         FHasReturn := False;
         try
           ExecRet := EvalStatements(Callable.Body, ExecScope);
-          if ExecRet <> nil then ExecRet.Release;
+          if ExecRet <> nil then
+            ExecRet.Release;
           { Copy members from execution scope to callable object }
           for I := 0 to ExecScope.Members.Count - 1 do
           begin
@@ -1124,7 +1132,8 @@ begin
           end;
         finally
           ExecScope.Release;
-          if FReturnValue <> nil then FReturnValue.Release;
+          if FReturnValue <> nil then
+            FReturnValue.Release;
           FReturnValue := SavedReturn;
           FHasReturn := SavedHasReturn;
         end;
@@ -1139,6 +1148,14 @@ begin
 
   { Variable declaration with initializer }
   Value := EvalExpression(Node.Children[0], Scope);
+  { DeclaredType is set on the value object; never mutate a shared singleton
+    (small-int cache / true / false / none) in place - clone it first. }
+  if (Value <> nil) and Value.IsSingleton then
+  begin
+    Cloned := Value.Clone(False);
+    Value.Release;
+    Value := Cloned;
+  end;
   Value.DeclaredType := LowerCase(Node.Typ);
   Scope.SetMember(Node.Name, Value);
   Value.Release;
@@ -1475,11 +1492,10 @@ var
   I: Integer;
   V: TSardValue;
 begin
-  Result := NewValue;
-
   IsCurr := (Left.Kind = vkCurrency) or (Right.Kind = vkCurrency);
   if IsCurr then
   begin
+    Result := NewValue;
     if Left.Kind = vkCurrency then CV1 := Left.CurrencyValue else CV1 := Left.IntValue * 1000000;
     if Right.Kind = vkCurrency then CV2 := Right.CurrencyValue else CV2 := Right.IntValue * 1000000;
     Result.Kind := vkCurrency;
@@ -1501,6 +1517,7 @@ begin
   begin
     if Op = '+' then
     begin
+      Result := NewValue;
       Result.Kind := vkString;
       Result.StrValue := Left.AsString + Right.AsString;
       Exit;
@@ -1512,6 +1529,7 @@ begin
   { Array + array appends }
   if (Left.Kind = vkArray) and (Right.Kind = vkArray) and (Op = '+') then
   begin
+    Result := NewValue;
     Result.Kind := vkArray;
     for I := 0 to Left.ArrayItems.Count - 1 do
     begin
@@ -1530,6 +1548,7 @@ begin
 
   if (Left.Kind = vkNumber) or (Right.Kind = vkNumber) then
   begin
+    Result := NewValue;
     if Left.Kind = vkNumber then D1 := Left.FloatValue else D1 := Left.IntValue;
     if Right.Kind = vkNumber then D2 := Right.FloatValue else D2 := Right.IntValue;
     Result.Kind := vkNumber;
@@ -1547,45 +1566,48 @@ begin
     Exit;
   end;
 
+  { Integer arithmetic: route through the small-int cache so common results
+    (counters, n-1, n-2, small sums) return shared singletons with no alloc. }
   I1 := Left.IntValue;
   I2 := Right.IntValue;
-  Result.Kind := vkInteger;
-  if Op = '+' then Result.IntValue := I1 + I2
-  else if Op = '-' then Result.IntValue := I1 - I2
-  else if Op = '*' then Result.IntValue := I1 * I2
+  if Op = '+' then Result := IntegerValue(I1 + I2)
+  else if Op = '-' then Result := IntegerValue(I1 - I2)
+  else if Op = '*' then Result := IntegerValue(I1 * I2)
   else if Op = '/' then
-      begin
-        if I2 = 0 then raise ESardError.Create('Division by zero');
-        Result.Kind := vkNumber;
-        Result.FloatValue := I1 / I2;
+  begin
+    if I2 = 0 then raise ESardError.Create('Division by zero');
+    Result := NewValue;
+    Result.Kind := vkNumber;
+    Result.FloatValue := I1 / I2;
   end
   else if Op = '^' then
-      begin
-        Result.Kind := vkNumber;
-        Result.FloatValue := Power(I1, I2);
+  begin
+    Result := NewValue;
+    Result.Kind := vkNumber;
+    Result.FloatValue := Power(I1, I2);
   end
-  else if Op = 'mod' then Result.IntValue := I1 mod I2
-  else raise ESardError.CreateFmt('Unsupported operator %s', [Op]);
-      end;
+  else if Op = 'mod' then Result := IntegerValue(I1 mod I2)
+  else
+    raise ESardError.CreateFmt('Unsupported operator %s', [Op]);
+end;
 
 function TInterpreter.ApplyUnary(const Op: string; Operand: TSardValue): TSardValue;
 begin
-  Result := NewValue;
   if Op = '-' then
   begin
     if Operand.Kind = vkNumber then
     begin
+      Result := NewValue;
       Result.Kind := vkNumber;
       Result.FloatValue := -Operand.FloatValue;
     end
     else
-    begin
-      Result.Kind := vkInteger;
-      Result.IntValue := -Operand.IntValue;
-    end;
-  end
-  else if Op = '+' then
+      Result := IntegerValue(-Operand.IntValue);
+    Exit;
+  end;
+  if Op = '+' then
   begin
+    Result := NewValue;
     Result.Kind := Operand.Kind;
     Result.IntValue := Operand.IntValue;
     Result.FloatValue := Operand.FloatValue;
@@ -1593,14 +1615,11 @@ begin
     Result.BoolValue := Operand.BoolValue;
     Result.ColorValue := Operand.ColorValue;
     Result.CurrencyValue := Operand.CurrencyValue;
-  end
-  else if (Op = '!') or (Op = 'not') then
-  begin
-    Result := BooleanValue(not IsTruthy(Operand));
     Exit;
-  end
-  else
-    raise ESardError.CreateFmt('Unknown unary operator: %s', [Op]);
+  end;
+  if (Op = '!') or (Op = 'not') then
+    Exit(BooleanValue(not IsTruthy(Operand)));
+  raise ESardError.CreateFmt('Unknown unary operator: %s', [Op]);
 end;
 
 function TInterpreter.CoerceValue(Value: TSardValue; const TargetType: string): TSardValue;
@@ -1832,7 +1851,8 @@ begin
   if (Index < 0) or (Index >= Arr.ArrayItems.Count) then
     raise ESardError.CreateFmt('Array index out of bounds: %d', [Index]);
   Old := TSardValue(Arr.ArrayItems[Index]);
-  if Old <> nil then Old.Release;
+  if Old <> nil then
+    Old.Release;
   if IsImmutableKind(Value.Kind) then
   begin
     Value.AddRef;
@@ -1848,7 +1868,7 @@ end;
 
 function TInterpreter.CallUserCallable(Callable: TSardValue; Scope: TSardValue; CallBase: TSardValue; Args: TSardValueArray; Blocks: TASTNode): TSardValue;
 var
-  CallableScope, BodyScope: TSardValue;
+  CallScope: TSardValue;
   I, J, OpenIdx: Integer;
   ParamName: string;
   ArgValue, Arr, V: TSardValue;
@@ -1862,10 +1882,12 @@ var
 
 begin
   Result := nil;
+  { A single scope holds both parameters and body locals (one allocation per
+    call instead of two). Params and locals share a frame, as in CPython. }
   if CallBase <> nil then
-    CallableScope := NewScope(CallBase)
+    CallScope := NewScope(CallBase)
   else
-    CallableScope := NewScope(Scope);
+    CallScope := NewScope(Scope);
   try
     { Bind arguments; omitted arguments use the declared default or null }
     OpenIdx := Callable.OpenParamIndex;
@@ -1915,7 +1937,7 @@ begin
         ArgValue := NewValue;
         ArgValue.Kind := vkNull;
       end;
-      CallableScope.SetMember(ParamName, ArgValue);
+      CallScope.SetMember(ParamName, ArgValue);
       ArgValue.Release;
     end;
 
@@ -1938,12 +1960,11 @@ begin
         BlocksArray.ArrayItems.Add(BlockVal);
         BlockVal.Release;
       end;
-      CallableScope.SetMember('_blocks', BlocksArray);
+      CallScope.SetMember('_blocks', BlocksArray);
       BlocksArray.Release;
     end;
 
-    { Execute body }
-    BodyScope := NewScope(CallableScope);
+    { Execute body in the same scope }
     SavedReturn := FReturnValue;
     SavedHasReturn := FHasReturn;
     SavedExitValue := FExitValue;
@@ -1953,7 +1974,7 @@ begin
     FExitValue := nil;
     FHasExit := False;
     try
-      Result := EvalStatements(Callable.Body, BodyScope);
+      Result := EvalStatements(Callable.Body, CallScope);
       if FHasExit then
       begin
         if Result <> nil then Result.Release;
@@ -1962,7 +1983,6 @@ begin
         FHasExit := False;
       end;
     finally
-      BodyScope.Release;
       if FReturnValue <> nil then FReturnValue.Release;
       FReturnValue := SavedReturn;
       FHasReturn := SavedHasReturn;
@@ -1972,7 +1992,7 @@ begin
     end;
     if Result = nil then Result := NewValue;
   finally
-    CallableScope.Release;
+    CallScope.Release;
   end;
 end;
 
@@ -2288,33 +2308,38 @@ begin
   try
     if not CountKnown then
     begin
-      while True do
-      begin
-        NewScopeObj := InterpObj.NewScope(Scope);
-        try
+      { Reuse a single iteration scope; clear members between iterations to
+        preserve fresh-scope semantics. Closures created in the body capture
+        this shared scope (a known tradeoff for speed). }
+      NewScopeObj := InterpObj.NewScope(Scope);
+      try
+        while True do
+        begin
           ExecuteBody(NewScopeObj);
-        finally
-          NewScopeObj.Release;
+          if BodyFinished then Break;
+          NewScopeObj.ClearMembers;
         end;
-        if BodyFinished then Break;
+      finally
+        NewScopeObj.Release;
       end;
     end
     else
     begin
-      for Iteration := 0 to Count - 1 do
-      begin
-        NewScopeObj := InterpObj.NewScope(Scope);
-        if HaveVarName then
+      NewScopeObj := InterpObj.NewScope(Scope);
+      try
+        for Iteration := 0 to Count - 1 do
         begin
-          IndexValue.IntValue := Iteration;
-          NewScopeObj.SetMember(VarName, IndexValue);
-        end;
-        try
+          if HaveVarName then
+          begin
+            IndexValue.IntValue := Iteration;
+            NewScopeObj.SetMember(VarName, IndexValue);
+          end;
           ExecuteBody(NewScopeObj);
-        finally
-          NewScopeObj.Release;
+          if BodyFinished then Break;
+          NewScopeObj.ClearMembers;
         end;
-        if BodyFinished then Break;
+      finally
+        NewScopeObj.Release;
       end;
     end;
   finally
@@ -2410,46 +2435,52 @@ begin
   try
     if Container.Kind = vkArray then
     begin
-      for I := 0 to Container.ArrayItems.Count - 1 do
-      begin
-        ElemValue := TSardValue(Container.ArrayItems[I]);
-        if IsImmutableKind(ElemValue.Kind) then
-          ElemValue.AddRef
-        else
-          ElemValue := ElemValue.Clone(True);
-        try
-          NewScopeObj := InterpObj.NewScope(Scope);
-          NewScopeObj.SetMember(VarName, ElemValue);
+      { Reuse a single iteration scope; clear members between iterations. }
+      NewScopeObj := InterpObj.NewScope(Scope);
+      try
+        for I := 0 to Container.ArrayItems.Count - 1 do
+        begin
+          ElemValue := TSardValue(Container.ArrayItems[I]);
+          if IsImmutableKind(ElemValue.Kind) then
+            ElemValue.AddRef
+          else
+            ElemValue := ElemValue.Clone(True);
           try
+            NewScopeObj.ClearMembers;
+            NewScopeObj.SetMember(VarName, ElemValue);
             ExecuteBody(NewScopeObj);
+            if BodyFinished then Break;
           finally
-            NewScopeObj.Release;
+            ElemValue.Release;
           end;
-          if BodyFinished then Break;
-        finally
-          ElemValue.Release;
         end;
+      finally
+        NewScopeObj.Release;
       end;
     end
     else if Container.Kind = vkString then
     begin
       StrValue := Container.StrValue;
       LenValue := Length(StrValue);
-      for I := 1 to LenValue do
-      begin
-        Ch := StrValue[I];
-        ElemValue := InterpObj.NewValue;
-        ElemValue.Kind := vkString;
-        ElemValue.StrValue := Ch;
-        NewScopeObj := InterpObj.NewScope(Scope);
-        NewScopeObj.SetMember(VarName, ElemValue);
-        ElemValue.Release;
-        try
-          ExecuteBody(NewScopeObj);
-        finally
-          NewScopeObj.Release;
+      NewScopeObj := InterpObj.NewScope(Scope);
+      try
+        for I := 1 to LenValue do
+        begin
+          Ch := StrValue[I];
+          ElemValue := InterpObj.NewValue;
+          ElemValue.Kind := vkString;
+          ElemValue.StrValue := Ch;
+          try
+            NewScopeObj.ClearMembers;
+            NewScopeObj.SetMember(VarName, ElemValue);
+            ExecuteBody(NewScopeObj);
+            if BodyFinished then Break;
+          finally
+            ElemValue.Release;
+          end;
         end;
-        if BodyFinished then Break;
+      finally
+        NewScopeObj.Release;
       end;
     end
     else

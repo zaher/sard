@@ -7,7 +7,7 @@ unit SardTypes;
 interface
 
 uses
-  SysUtils, Classes, RTTI;
+  SysUtils, Classes, Generics.Collections, RTTI;
 
 type
   {$ifndef FPC}
@@ -171,12 +171,15 @@ type
     property ParamTypes: TStringList read GetParamTypes;
     constructor Create;
     destructor Destroy; override;
+    class function NewInstance: TObject; override;
+    procedure FreeInstance; override;
     procedure AddRef;
     procedure Release;
     procedure SetParent(P: TSardValue);
     function Clone(Deep: Boolean = True): TSardValue;
     procedure SetMember(const Name: string; Value: TSardValue);
     procedure SetMemberAt(Index: Integer; Value: TSardValue);
+    procedure ClearMembers;
     function GetMember(const Name: string): TSardValue;
     function FindLocalMember(const Name: string; out Index: Integer): Boolean;
     function HasLocalMember(const Name: string): Boolean;
@@ -205,8 +208,9 @@ var
   ValueFalse: TSardValue = nil;
   ValueNone: TSardValue = nil;
 
-function BooleanValue(V: Boolean): TSardValue;
-function NullValue: TSardValue;
+function BooleanValue(V: Boolean): TSardValue; inline;
+function NullValue: TSardValue; inline;
+function IntegerValue(N: Int64): TSardValue; inline;
 
 implementation
 
@@ -542,21 +546,54 @@ begin
   RefCount := 1;
   IsSingleton := False;
   Kind := vkNull;
+  IntValue := 0;
+  FloatValue := 0;
+  StrValue := '';
+  BoolValue := False;
+  ColorValue := 0;
+  CurrencyValue := 0;
   FArrayItems := nil;
   FMembers := nil;
   FMemberMap := nil;
   FParams := nil;
   FParamTypes := nil;
   Parent := nil;
-    Callable := False;
-    Body := nil;
-    DeclaredType := '';
-    IsScope := False;
-    BuiltinHandler := nil;
-    SetLength(RawArgIndexes, 0);
-    RawNode := nil;
-    OpenParamIndex := -1;
-  end;
+  Callable := False;
+  SetLength(ParamDefaults, 0);
+  SetLength(ParamOpen, 0);
+  OpenParamIndex := -1;
+  ReturnType := '';
+  Body := nil;
+  DeclaredType := '';
+  BuiltinName := '';
+  BuiltinHandler := nil;
+  SetLength(RawArgIndexes, 0);
+  IsScope := False;
+  RawNode := nil;
+end;
+
+var
+  ValuePool: TList = nil;
+  ValuePoolCap: Integer = 32768;
+
+class function TSardValue.NewInstance: TObject;
+begin
+  if (ValuePool <> nil) and (ValuePool.Count > 0) then
+  begin
+    Result := TObject(ValuePool.Items[ValuePool.Count - 1]);
+    ValuePool.Delete(ValuePool.Count - 1);
+  end
+  else
+    Result := inherited NewInstance;
+end;
+
+procedure TSardValue.FreeInstance;
+begin
+  if (ValuePool <> nil) and (ValuePool.Count < ValuePoolCap) then
+    ValuePool.Add(Self)
+  else
+    inherited FreeInstance;
+end;
 
 procedure TSardValue.AddRef;
 begin
@@ -728,6 +765,24 @@ begin
   if Value <> nil then Value.AddRef;
 end;
 
+procedure TSardValue.ClearMembers;
+var
+  I: Integer;
+  V: TSardValue;
+begin
+  if FMembers <> nil then
+  begin
+    for I := 0 to FMembers.Count - 1 do
+    begin
+      V := TSardValue(FMembers.Objects[I]);
+      if V <> nil then V.Release;
+    end;
+    FMembers.Clear;
+    if FMemberMap <> nil then
+      FMemberMap.Clear;
+  end;
+end;
+
 function TSardValue.GetMember(const Name: string): TSardValue;
 var
   Idx: Integer;
@@ -795,6 +850,13 @@ begin
   Result := ValueNone;
 end;
 
+function IntegerValue(N: Int64): TSardValue;
+begin
+  Result := TSardValue.Create;
+  Result.Kind := vkInteger;
+  Result.IntValue := N;
+end;
+
 function TSardValue.AsString: string;
 var
   I: Integer;
@@ -843,7 +905,13 @@ begin
   end;
 end;
 
+var
+  InitN: Int64;
+  FinPool: TList;
+
 initialization
+  ValuePool := TList.Create;
+
   ValueTrue := TSardValue.Create;
   ValueTrue.Kind := vkBoolean;
   ValueTrue.BoolValue := True;
@@ -862,4 +930,15 @@ finalization
   FreeAndNil(ValueTrue);
   FreeAndNil(ValueFalse);
   FreeAndNil(ValueNone);
+  if ValuePool <> nil then
+  begin
+    { Pooled instances already ran Destroy when they were released; free their
+      raw memory directly via FreeInstance (nil the global first so the override
+      takes the inherited dealloc path instead of re-pooling). }
+    FinPool := ValuePool;
+    ValuePool := nil;
+    for InitN := 0 to FinPool.Count - 1 do
+      TObject(FinPool[InitN]).FreeInstance;
+    FinPool.Free;
+  end;
 end.

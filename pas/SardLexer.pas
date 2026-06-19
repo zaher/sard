@@ -193,7 +193,8 @@ begin
     while IsDigit(Peek) or (Peek = '_') do Advance;
   end;
   Result := Copy(FSource, Start, FPos - Start);
-  Result := StringReplace(Result, '_', '', [rfReplaceAll]);
+  if Pos('_', Result) > 0 then
+    Result := StringReplace(Result, '_', '', [rfReplaceAll]);
 end;
 
 function TLexer.ReadHex: string;
@@ -206,7 +207,8 @@ begin
   while IsDigit(Peek) or ((Peek >= 'a') and (Peek <= 'f')) or ((Peek >= 'A') and (Peek <= 'F')) or (Peek = '_') do
     Advance;
   Result := Copy(FSource, Start, FPos - Start);
-  Result := StringReplace(Result, '_', '', [rfReplaceAll]);
+  if Pos('_', Result) > 0 then
+    Result := StringReplace(Result, '_', '', [rfReplaceAll]);
   if Result = '' then
     raise ESardError.CreateFmt('Invalid hex literal at line %d col %d', [FLine, FCol]);
 end;
@@ -223,7 +225,8 @@ begin
   while IsDigit(Peek) or ((Peek >= 'a') and (Peek <= 'f')) or ((Peek >= 'A') and (Peek <= 'F')) or (Peek = '_') do
     Advance;
   S := Copy(FSource, Start, FPos - Start);
-  S := StringReplace(S, '_', '', [rfReplaceAll]);
+  if Pos('_', S) > 0 then
+    S := StringReplace(S, '_', '', [rfReplaceAll]);
   Len := Length(S);
   if Len = 3 then
   begin
@@ -266,7 +269,8 @@ begin
       raise ESardError.CreateFmt('Currency literal has too many fractional digits at line %d col %d', [FLine, FCol]);
   end;
   S := Copy(FSource, Start, FPos - Start);
-  S := StringReplace(S, '_', '', [rfReplaceAll]);
+  if Pos('_', S) > 0 then
+    S := StringReplace(S, '_', '', [rfReplaceAll]);
   { Normalize to 6 fractional digits for parser }
   if HasDot then
   begin
@@ -296,7 +300,8 @@ begin
   while IsDigit(Peek) or (Peek = '_') do
     Advance;
   S := Copy(FSource, Start, FPos - Start);
-  S := StringReplace(S, '_', '', [rfReplaceAll]);
+  if Pos('_', S) > 0 then
+    S := StringReplace(S, '_', '', [rfReplaceAll]);
   Len := Length(S);
   if (Len <> 8) and (Len <> 10) and (Len <> 12) and (Len <> 14) then
     raise ESardError.CreateFmt('Invalid date literal at line %d col %d: expected 8, 10, 12, or 14 digits', [FLine, FCol]);
