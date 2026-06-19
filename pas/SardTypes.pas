@@ -97,6 +97,7 @@ type
     Kind: TNodeKind;
     TokenText: string;
     TokenLine, TokenCol: Integer;
+
     StrValue: string;
     IntValue: Int64;
     FloatValue: Double;
@@ -104,6 +105,7 @@ type
     CurrencyValue: Int64;
     BoolValue: Boolean;
     IsDate: Boolean;
+
     IsNone: Boolean;
     Name: string;
     Op: string;
@@ -251,16 +253,16 @@ begin
   FloatValue := 0;
   ColorValue := 0;
   CurrencyValue := 0;
-    BoolValue := False;
-    IsDate := False;
-    IsNone := False;
-    Name := '';
-   Op := '';
-    Typ := '';
-    ReturnType := '';
-     OpenParamIndex := -1;
-     FChildCount := 0;
-   end;
+  BoolValue := False;
+  IsDate := False;
+  IsNone := False;
+  Name := '';
+  Op := '';
+  Typ := '';
+  ReturnType := '';
+  OpenParamIndex := -1;
+  FChildCount := 0;
+end;
 
 destructor TASTNode.Destroy;
 var
@@ -305,15 +307,17 @@ var
   I: Integer;
 begin
   Result := TASTNode.Create(Kind, TokenText, TokenLine, TokenCol);
+
   Result.StrValue := StrValue;
   Result.IntValue := IntValue;
   Result.FloatValue := FloatValue;
   Result.ColorValue := ColorValue;
-   Result.CurrencyValue := CurrencyValue;
-   Result.BoolValue := BoolValue;
-   Result.IsDate := IsDate;
-   Result.IsNone := IsNone;
-   Result.Name := Name;
+  Result.CurrencyValue := CurrencyValue;
+  Result.BoolValue := BoolValue;
+  Result.IsDate := IsDate;
+  Result.IsNone := IsNone;
+
+  Result.Name := Name;
   Result.Op := Op;
   Result.Typ := Typ;
   Result.ReturnType := ReturnType;
@@ -644,13 +648,13 @@ begin
     Result.ParamOpen[I] := ParamOpen[I];
   Result.OpenParamIndex := OpenParamIndex;
   Result.ReturnType := ReturnType;
-    Result.DeclaredType := DeclaredType;
-    Result.BuiltinName := BuiltinName;
-    Result.BuiltinHandler := BuiltinHandler;
-    SetLength(Result.RawArgIndexes, Length(RawArgIndexes));
-    for I := 0 to High(RawArgIndexes) do
-      Result.RawArgIndexes[I] := RawArgIndexes[I];
-    Result.IsScope := IsScope;
+  Result.DeclaredType := DeclaredType;
+  Result.BuiltinName := BuiltinName;
+  Result.BuiltinHandler := BuiltinHandler;
+  SetLength(Result.RawArgIndexes, Length(RawArgIndexes));
+  for I := 0 to High(RawArgIndexes) do
+    Result.RawArgIndexes[I] := RawArgIndexes[I];
+  Result.IsScope := IsScope;
   if Body <> nil then
     Result.Body := Body.DeepClone;
   if Deep then
