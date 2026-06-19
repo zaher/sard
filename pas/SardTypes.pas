@@ -55,34 +55,15 @@ type
   TASTNode = class;
   TASTNodeArray = array of TASTNode;
 
-  { Simple open-addressing hash map for string -> integer lookups.
-    Used to accelerate member/variable name lookup. Case-insensitive. }
-  THashEntryState = (hesEmpty, hesUsed);
-
-  THashEntry = record
-    Key: string;
-    Value: Integer;
-    State: THashEntryState;
-  end;
-
-  TStringIntHashMap = class(TObject)
-  private
-    FEntries: array of THashEntry;
-    FCount: Integer;
-    FCapacity: Integer;
-    function HashKey(const Key: string): Cardinal;
-    function SameKey(const A, B: string): Boolean;
-    procedure Grow;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Add(const Key: string; Value: Integer);
-    function IndexOf(const Key: string): Integer;
-    procedure Clear;
-    property Count: Integer read FCount;
-  end;
-
   TSardValue = class;
+
+  {$ifdef FPC}
+  TSardValueDict = specialize TDictionary<string, TSardValue>;
+  TSardValuePair = specialize TPair<string, TSardValue>;
+  {$else}
+  TSardValueDict = TDictionary<string, TSardValue>;
+  TSardValuePair = TPair<string, TSardValue>;
+  {$endif}
 
   TSardValueArray = array of TSardValue;
 
@@ -133,15 +114,13 @@ type
   TSardValue = class(TObject)
   private
     FArrayItems: TList;
-    FMembers: TStringList;
-    FMemberMap: TStringIntHashMap;
+    FMembers: TSardValueDict;
     FParams: TStringList;
     FParamTypes: TStringList;
     function GetArrayItems: TList;
-    function GetMembers: TStringList;
+    function GetMembers: TSardValueDict;
     function GetParams: TStringList;
     function GetParamTypes: TStringList;
-    procedure RebuildMemberMap;
   public
     RefCount: Integer;
     IsSingleton: Boolean;
@@ -166,7 +145,7 @@ type
     IsScope: Boolean;
     RawNode: TASTNode; { for vkRawArg values: the raw, unevaluated argument AST node }
     property ArrayItems: TList read GetArrayItems;
-    property Members: TStringList read GetMembers;
+    property Members: TSardValueDict read GetMembers;
     property Params: TStringList read GetParams;
     property ParamTypes: TStringList read GetParamTypes;
     constructor Create;
@@ -178,11 +157,10 @@ type
     procedure SetParent(P: TSardValue);
     function Clone(Deep: Boolean = True): TSardValue;
     procedure SetMember(const Name: string; Value: TSardValue);
-    procedure SetMemberAt(Index: Integer; Value: TSardValue);
     procedure ClearMembers;
     function GetMember(const Name: string): TSardValue;
-    function FindLocalMember(const Name: string; out Index: Integer): Boolean;
     function HasLocalMember(const Name: string): Boolean;
+    function TryGetLocalMember(const Name: string; out Value: TSardValue): Boolean;
     function KindName: string;
     function AsString: string;
   end;
@@ -401,110 +379,6 @@ begin
     DumpAST(Node.Children[I], Indent + 1);
 end;
 
-{ TStringIntHashMap }
-
-function TStringIntHashMap.HashKey(const Key: string): Cardinal;
-var
-  I: Integer;
-  C: Char;
-begin
-  Result := 5381;
-  for I := 1 to Length(Key) do
-  begin
-    C := Key[I];
-    if (C >= 'A') and (C <= 'Z') then
-      C := Char(Ord(C) + 32);
-    Result := LongWord((UInt64(Result) * 33) xor UInt64(Ord(C)));
-  end;
-end;
-
-function TStringIntHashMap.SameKey(const A, B: string): Boolean;
-begin
-  Result := SameText(A, B);
-end;
-
-constructor TStringIntHashMap.Create;
-begin
-  inherited;
-  FCapacity := 16;
-  SetLength(FEntries, FCapacity);
-  FCount := 0;
-end;
-
-destructor TStringIntHashMap.Destroy;
-begin
-  SetLength(FEntries, 0);
-  inherited;
-end;
-
-procedure TStringIntHashMap.Grow;
-var
-  OldEntries: array of THashEntry;
-  I: Integer;
-begin
-  OldEntries := FEntries;
-  FCapacity := FCapacity * 2;
-  SetLength(FEntries, FCapacity);
-  FCount := 0;
-  for I := 0 to High(OldEntries) do
-    if OldEntries[I].State = hesUsed then
-      Add(OldEntries[I].Key, OldEntries[I].Value);
-end;
-
-function TStringIntHashMap.IndexOf(const Key: string): Integer;
-var
-  H, Slot: Cardinal;
-begin
-  if FCount = 0 then
-  begin
-    Result := -1;
-    Exit;
-  end;
-  H := HashKey(Key);
-  Slot := H mod Cardinal(FCapacity);
-  while FEntries[Slot].State <> hesEmpty do
-  begin
-    if (FEntries[Slot].State = hesUsed) and SameKey(FEntries[Slot].Key, Key) then
-    begin
-      Result := FEntries[Slot].Value;
-      Exit;
-    end;
-    Slot := (Slot + 1) mod Cardinal(FCapacity);
-  end;
-  Result := -1;
-end;
-
-procedure TStringIntHashMap.Add(const Key: string; Value: Integer);
-var
-  H, Slot: Cardinal;
-begin
-  if FCount * 2 >= FCapacity then Grow;
-  H := HashKey(Key);
-  Slot := H mod Cardinal(FCapacity);
-  while FEntries[Slot].State = hesUsed do
-  begin
-    if SameKey(FEntries[Slot].Key, Key) then
-    begin
-      FEntries[Slot].Value := Value;
-      Exit;
-    end;
-    Slot := (Slot + 1) mod Cardinal(FCapacity);
-  end;
-  FEntries[Slot].State := hesUsed;
-  FEntries[Slot].Key := Key;
-  FEntries[Slot].Value := Value;
-  Inc(FCount);
-end;
-
-procedure TStringIntHashMap.Clear;
-var
-  I: Integer;
-begin
-  for I := 0 to High(FEntries) do
-    FEntries[I].State := hesEmpty;
-  FCount := 0;
-end;
-
 { TSardValue }
 
 function TSardValue.GetArrayItems: TList;
@@ -514,15 +388,10 @@ begin
   Result := FArrayItems;
 end;
 
-function TSardValue.GetMembers: TStringList;
+function TSardValue.GetMembers: TSardValueDict;
 begin
   if FMembers = nil then
-  begin
-    FMembers := TStringList.Create;
-    FMembers.CaseSensitive := False;
-    if FMemberMap = nil then
-      FMemberMap := TStringIntHashMap.Create;
-  end;
+    FMembers := TSardValueDict.Create;
   Result := FMembers;
 end;
 
@@ -554,7 +423,6 @@ begin
   CurrencyValue := 0;
   FArrayItems := nil;
   FMembers := nil;
-  FMemberMap := nil;
   FParams := nil;
   FParamTypes := nil;
   Parent := nil;
@@ -617,18 +485,17 @@ destructor TSardValue.Destroy;
 var
   I: Integer;
   V: TSardValue;
+  Pair: TSardValuePair;
 begin
   if FMembers <> nil then
   begin
-    for I := 0 to FMembers.Count - 1 do
+    for Pair in FMembers do
     begin
-      V := TSardValue(FMembers.Objects[I]);
+      V := Pair.Value;
       if V <> nil then V.Release;
     end;
     FMembers.Free;
   end;
-  if FMemberMap <> nil then
-    FMemberMap.Free;
   if FArrayItems <> nil then
   begin
     for I := 0 to FArrayItems.Count - 1 do
@@ -646,22 +513,11 @@ begin
   inherited;
 end;
 
-procedure TSardValue.RebuildMemberMap;
-var
-  I: Integer;
-begin
-  if FMemberMap = nil then
-    FMemberMap := TStringIntHashMap.Create;
-  FMemberMap.Clear;
-  if FMembers <> nil then
-    for I := 0 to FMembers.Count - 1 do
-      FMemberMap.Add(FMembers[I], I);
-end;
-
 function TSardValue.Clone(Deep: Boolean): TSardValue;
 var
   I: Integer;
   V: TSardValue;
+  Pair: TSardValuePair;
 begin
   Result := TSardValue.Create;
   Result.Kind := Kind;
@@ -705,11 +561,11 @@ begin
           Result.ArrayItems.Add(V.Clone(True));
       end;
     if FMembers <> nil then
-      for I := 0 to FMembers.Count - 1 do
+      for Pair in FMembers do
       begin
-        V := TSardValue(FMembers.Objects[I]);
+        V := Pair.Value;
         if V <> nil then
-          Result.Members.AddObject(FMembers[I], V.Clone(True));
+          Result.Members.AddOrSetValue(Pair.Key, V.Clone(True));
       end;
   end
   else
@@ -723,80 +579,56 @@ begin
         Result.ArrayItems.Add(V);
       end;
     if FMembers <> nil then
-      for I := 0 to FMembers.Count - 1 do
+      for Pair in FMembers do
       begin
-        V := TSardValue(FMembers.Objects[I]);
+        V := Pair.Value;
         if V <> nil then V.AddRef;
-        Result.Members.AddObject(FMembers[I], V);
+        Result.Members.AddOrSetValue(Pair.Key, V);
       end;
   end;
-  Result.RebuildMemberMap;
 end;
 
 procedure TSardValue.SetMember(const Name: string; Value: TSardValue);
 var
-  Idx: Integer;
   Old: TSardValue;
 begin
-  Idx := -1;
-  if FMemberMap <> nil then
-    Idx := FMemberMap.IndexOf(Name);
-  if Idx >= 0 then
-  begin
-    Old := TSardValue(FMembers.Objects[Idx]);
-    if Old <> nil then Old.Release;
-    FMembers.Objects[Idx] := Value;
-  end
-  else
-  begin
-    Members.AddObject(Name, Value);
-    FMemberMap.Add(Name, Members.Count - 1);
-  end;
-  if Value <> nil then Value.AddRef;
-end;
-
-procedure TSardValue.SetMemberAt(Index: Integer; Value: TSardValue);
-var
-  Old: TSardValue;
-begin
-  Old := TSardValue(FMembers.Objects[Index]);
-  if Old <> nil then Old.Release;
-  FMembers.Objects[Index] := Value;
+  if FMembers <> nil then
+    if FMembers.TryGetValue(Name, Old) then
+    begin
+      if Old <> nil then Old.Release;
+      FMembers[Name] := Value;
+      if Value <> nil then Value.AddRef;
+      Exit;
+    end;
+  Members.AddOrSetValue(Name, Value);
   if Value <> nil then Value.AddRef;
 end;
 
 procedure TSardValue.ClearMembers;
 var
-  I: Integer;
   V: TSardValue;
+  Pair: TSardValuePair;
 begin
   if FMembers <> nil then
   begin
-    for I := 0 to FMembers.Count - 1 do
+    for Pair in FMembers do
     begin
-      V := TSardValue(FMembers.Objects[I]);
+      V := Pair.Value;
       if V <> nil then V.Release;
     end;
     FMembers.Clear;
-    if FMemberMap <> nil then
-      FMemberMap.Clear;
   end;
 end;
 
 function TSardValue.GetMember(const Name: string): TSardValue;
 var
-  Idx: Integer;
   Curr: TSardValue;
 begin
   Curr := Self;
   while Curr <> nil do
   begin
-    Idx := Curr.Members.IndexOf(Name);
-    if Idx >= 0 then
-    begin
-      Result := TSardValue(Curr.Members.Objects[Idx]);
+    if (Curr.FMembers <> nil) and Curr.FMembers.TryGetValue(Name, Result) then
       Exit;
-    end;
     Curr := Curr.Parent;
   end;
   Result := nil;
@@ -804,21 +636,12 @@ end;
 
 function TSardValue.HasLocalMember(const Name: string): Boolean;
 begin
-  Result := (FMemberMap <> nil) and (FMemberMap.IndexOf(Name) >= 0);
+  Result := (FMembers <> nil) and FMembers.ContainsKey(Name);
 end;
 
-function TSardValue.FindLocalMember(const Name: string; out Index: Integer): Boolean;
+function TSardValue.TryGetLocalMember(const Name: string; out Value: TSardValue): Boolean;
 begin
-  if FMemberMap = nil then
-  begin
-    Index := -1;
-    Result := False;
-  end
-  else
-  begin
-    Index := FMemberMap.IndexOf(Name);
-    Result := Index >= 0;
-  end;
+  Result := (FMembers <> nil) and FMembers.TryGetValue(Name, Value);
 end;
 
 function TSardValue.KindName: string;
